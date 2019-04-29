@@ -4,3 +4,6 @@
 [submodule "S2V"]
 	path = S2V
 	url = git@github.com:lajanugen/S2V.git
+[submodule "skip-thoughts"]
+	path = skip-thoughts
+	url = git@github.com:ryankiros/skip-thoughts.git
