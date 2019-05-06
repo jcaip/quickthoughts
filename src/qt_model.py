@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from util import wv_model
 
 class Encoder(nn.Module):
 
@@ -25,8 +26,9 @@ class QuickThoughts(nn.Module):
 
     def __init__(self, encoder='bow'):
         super(QuickThoughts, self).__init__()
-        self.enc_f = Encoder().cuda()
-        self.enc_g = Encoder().cuda()
+        self.enc_f = Encoder(wv_model).cuda()
+        self.enc_g = Encoder(wv_model).cuda()
+        self.softmax = nn.LogSoftmax()
 
     def forward(self, inputs):
         encoding_f = self.enc_f(inputs)
@@ -36,5 +38,5 @@ class QuickThoughts(nn.Module):
         mask = torch.eye(len(scores)).byte().cuda()
         scores.masked_fill_(mask, 0)    
 
-        return scores
+        return self.softmax(scores)
 
