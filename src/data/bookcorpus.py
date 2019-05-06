@@ -21,7 +21,7 @@ class VisdomLinePlotter(object):
             self.plots[var_name] = self.viz.line(X=np.array([x,x]), Y=np.array([y,y]), env=self.env, opts=dict(
                 legend=[split_name],
                 title=title_name,
-                xlabel='Epochs',
+                xlabel='batch',
                 ylabel=var_name
             ))
         else:
@@ -30,62 +30,56 @@ class VisdomLinePlotter(object):
 data_path = '/home/jcaip/workspace/quickthoughts/bookcorpus/all.txt'
 vec_path = '/home/jcaip/workspace/quickthoughts/S2V/GoogleNews-vectors-negative300.bin'
 
-wv_model = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=50000)
+wv_model = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000)
 
 def prepare_sequence(text, vocab=wv_model.vocab):
-    return torch.LongTensor([vocab[x].index for x in filter(lambda w: w in vocab, tokenize(text))])
+    tokens = list(tokenize(text))
+    pruned = tokens[:min(50, len(tokens))]
+    return torch.LongTensor([vocab[x].index for x in filter(lambda w: w in vocab, pruned)])
 
 class BookCorpus(data.dataset.Dataset):
 
     def __init__(self, file_path=data_path):
         print("Reading the data")
-        with open(data_path, encoding='ISO-8859-1') as f:
-            print("Creating Dataset")
-            self.examples = list(f)
-            print(len(self.examples))
+        self.file_path=file_path
 
     def __getitem__(self, i):
-        return prepare_sequence(self.examples[i])
+        with open(self.file_path, encoding='ISO-8859-1') as f:
+            for j, line in enumerate(f):
+                if i == j:
+                    return prepare_sequence(line)
 
     def __len__(self):
-        return len(self.examples)
+        #hack for now
+        return 68196283
 
 
 class Encoder(nn.Module):
 
-    def __init__(self, embedding_filepath=vec_path, vocab=None, hidden_dim=200):
+    def __init__(self, embedding_filepath=vec_path, vocab=None, hidden_dim=2400):
         super(Encoder, self).__init__()
         self.hidden_size = hidden_dim
 
         self.embeddings = nn.Embedding(*wv_model.vectors.shape)
+        print(wv_model.vectors.shape)
         self.embeddings.weight = torch.nn.Parameter(torch.from_numpy(wv_model.vectors), 
                                                     requires_grad=False)
-
         self.gru = nn.GRU(wv_model.vectors.shape[1], hidden_dim)
-
                                                     
     def forward(self, inputs):
-        # print(inputs.shape)
         embeds = self.embeddings(inputs)
-        # print("E: {}".format(embeds.shape))
         hidden = torch.zeros(1, embeds.shape[1], self.hidden_size)
+        if True:
+            hidden = hidden.cuda()
         out, hidden = self.gru(embeds, hidden)
         return hidden[-1]
-
-        # return output
-        # # print(embeds.shape)
-        # out = self.w(embeds)
-        # max, argmax = torch.max(out, dim=0)
-        # return max
 
 
 class QuickThoughts(nn.Module):
 
     def __init__(self, encoder='bow'):
         super(QuickThoughts, self).__init__()
-
-        if encoder =='bow':
-            self.enc_f = Encoder()
+        self.enc_f = Encoder().cuda()
 
     def forward(self, inputs):
         encoding_f = self.enc_f(inputs)
@@ -97,7 +91,7 @@ class QuickThoughts(nn.Module):
         scores = torch.matmul(encoding_f, encoding_g.t())
 
         # print("scores shape: {}".format(scores.shape))
-        mask = torch.eye(len(scores)).byte()
+        mask = torch.eye(len(scores)).byte().cuda()
         scores.masked_fill_(mask, 0)    
 
         return scores
@@ -109,10 +103,14 @@ context_size = 1
 print("Reading the data")
 with open(data_path, encoding='ISO-8859-1') as f:
     print("Creating Dataset")
-    train_iter = data.DataLoader(bc, batch_size=batch_size, num_workers=1, collate_fn=pad_sequence)
+    train_iter = data.DataLoader(bc, batch_size=batch_size, num_workers=10, collate_fn=pad_sequence)
 
 qt = QuickThoughts()
-optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=5e-5)
+for name, param in qt.named_parameters():
+        if param.requires_grad:
+            print(name, param.data.size())
+
+optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=5e-4)
 loss_function = nn.BCEWithLogitsLoss()
 
 plotter = VisdomLinePlotter(env_name='qt')
@@ -120,9 +118,10 @@ norm_threshold=1.0
 
 print("Starting training")
 for i, data in enumerate(train_iter):
-    # print(i.text.shape)
-    # print(data)
+    # print(i.text.j:shape)
+    # print(data.shape)
     qt.zero_grad()
+    data = data.cuda()
     a = qt(data)
     # print(a)
     # print(a.shape)
@@ -136,13 +135,15 @@ for i, data in enumerate(train_iter):
 
     targets_np_sum = np.sum(targets_np, axis=1, keepdims=True)
     targets_np = targets_np/targets_np_sum
-    targets = torch.tensor(targets_np, dtype=torch.float)
+    targets = torch.tensor(targets_np, dtype=torch.float).cuda()
     # print(targets)
     # print(targets.shape)
 
     loss = loss_function(a, targets)
-    print("step {} loss: {}".format(i, loss))
-    plotter.plot('loss', 'train', 'Class Loss', i, loss.item())
+    if i % 10 == 0:
+        print("step {} loss: {}".format(i, loss))
+        plotter.plot('loss', 'train', 'Class Loss', i, loss.item())
+
     loss.backward()
     nn.utils.clip_grad_norm(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
     optimizer.step()
