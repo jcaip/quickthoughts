@@ -34,39 +34,44 @@ loss_function = nn.KLDivLoss(reduction='batchmean')
 print("Starting training")
 
 for i, data in enumerate(train_iter):
-    qt.zero_grad()
-    data = data.cuda()
-    scores = qt(data)
+    try:
+        qt.zero_grad()
+        data = data.cuda()
+        scores = qt(data)
 
-    targets = torch.zeros(batch_size, batch_size)
-    for offset in [-1, 1]:
-        targets += torch.diag(torch.ones(batch_size-1), diagonal=offset)
-    targets = targets / targets.sum(1, keepdim=True)
-    targets = targets.cuda()
+        targets = torch.zeros(batch_size, batch_size)
+        for offset in [-1, 1]:
+            targets += torch.diag(torch.ones(batch_size-1), diagonal=offset)
+        targets = targets / targets.sum(1, keepdim=True)
+        targets = targets.cuda()
 
-    # print(scores)
-    # print(targets)
+        # print(scores)
+        # print(targets)
 
-    loss = loss_function(scores, targets)
-    if i % 10 == 0:
-        print("step: {} loss: {}".format(i, loss))
-        plotter.plot('loss', 'train', 'Loss', i, loss.item())
+        loss = loss_function(scores, targets)
+        
+        if i % 10 == 0:
+            print("step: {} loss: {}".format(i, loss))
+            plotter.plot('loss', 'train', 'Loss', i, loss.item())
 
-    if i % 1000 == 0: 
-        test_sentences =  [ "What is going on?",
-                           "Let's go eat.",
-                           "The engine won't start.",
-                           "I'm hungry now."]
+        if i % 1000 == 0: 
+            test_sentences =  [ "What is going on?",
+                               "Let's go eat.",
+                               "The engine won't start.",
+                               "I'm hungry now."]
 
-        pprint(test_sentences)
+            pprint(test_sentences)
 
-        test_sentences = pad_sequence(list(map(prepare_sequence, test_sentences))).cuda()
-        print(torch.softmax(qt(test_sentences), 1))
-        print(torch.softmax(scores, 1))
-        savepath = "../checkpoints/model-{}.pth".format(i)
-        print("Saving file at location : {}".format(savepath))
-        torch.save(qt.state_dict(), savepath)
+            test_sentences = pad_sequence(list(map(prepare_sequence, test_sentences))).cuda()
+            print(torch.exp(qt(test_sentences)))
+            print(torch.exp(scores))
+            savepath = "../checkpoints/model-{}.pth".format(i)
+            print("Saving file at location : {}".format(savepath))
+            torch.save(qt.state_dict(), savepath)
 
-    loss.backward()
-    nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
-    optimizer.step()
+        loss.backward()
+        nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
+        optimizer.step()
+    except Exception as e:
+        print("Whoops: {}".format(e))
+
