@@ -33,6 +33,10 @@ loss_function = nn.KLDivLoss(reduction='batchmean')
 
 print("Starting training")
 
+def eval_batch_accuracy(scores, target):
+    scores.max(1)
+
+
 for i, data in enumerate(train_iter):
     try:
         qt.zero_grad()
