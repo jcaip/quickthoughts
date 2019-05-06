@@ -61,8 +61,8 @@ for i, data in enumerate(train_iter):
         pprint(test_sentences)
 
         test_sentences = pad_sequence(list(map(prepare_sequence, test_sentences))).cuda()
-        print(torch.exp(qt(test_sentences)))
-        print(torch.exp(scores))
+        print(torch.softmax(qt(test_sentences), 1))
+        print(torch.softmax(scores, 1))
         savepath = "../checkpoints/model-{}.pth".format(i)
         print("Saving file at location : {}".format(savepath))
         torch.save(qt.state_dict(), savepath)
