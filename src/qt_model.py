@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from util import wv_model
 
+
+
 class Encoder(nn.Module):
 
     def __init__(self, wv_model, hidden_dim=1000):
@@ -15,9 +17,7 @@ class Encoder(nn.Module):
                                                     
     def forward(self, inputs):
         embeds = self.embeddings(inputs)
-        hidden = torch.zeros(1, embeds.shape[1], self.hidden_size)
-        if True:
-            hidden = hidden.cuda()
+        hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
         out, hidden = self.gru(embeds, hidden)
 
         return out[-1]
@@ -26,9 +26,9 @@ class QuickThoughts(nn.Module):
 
     def __init__(self, encoder='bow'):
         super(QuickThoughts, self).__init__()
-        self.enc_f = Encoder(wv_model).cuda()
-        self.enc_g = Encoder(wv_model).cuda()
-        self.softmax = nn.LogSoftmax()
+        self.enc_f = Encoder(wv_model)
+        self.enc_g = Encoder(wv_model)
+        self.softmax = nn.LogSoftmax(dim=0)
 
     def forward(self, inputs):
         encoding_f = self.enc_f(inputs)
