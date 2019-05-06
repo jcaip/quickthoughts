@@ -7,7 +7,9 @@ from qt_model import QuickThoughts
 from pprint import pprint
 from util import prepare_sequence, VisdomLinePlotter
 from torch.utils.data.dataloader import DataLoader
+from util import _LOGGER
 
+cuda = torch.device('cuda')
 batch_size = 400
 context_size = 1
 lr = 5e-4
@@ -24,18 +26,17 @@ qt = qt.cuda()
 # some debugging
 for name, param in qt.named_parameters():
     if param.requires_grad:
-        print(name, param.data.size())
+        _LOGGER.info(name, param.data.size())
 
 plotter = VisdomLinePlotter()
 
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=lr)
 loss_function = nn.KLDivLoss(reduction='batchmean')
 
-print("Starting training")
+_LOGGER.info("Starting training")
 
 def eval_batch_accuracy(scores, target):
     scores.max(1)
-
 
 for i, data in enumerate(train_iter):
     try:
@@ -43,19 +44,20 @@ for i, data in enumerate(train_iter):
         data = data.cuda()
         scores = qt(data)
 
+        #does this all on the gpu so hopefully faster
         targets = torch.zeros(batch_size, batch_size)
         for offset in [-1, 1]:
             targets += torch.diag(torch.ones(batch_size-1), diagonal=offset)
         targets = targets / targets.sum(1, keepdim=True)
         targets = targets.cuda()
 
-        # print(scores)
-        # print(targets)
 
         loss = loss_function(scores, targets)
         
         if i % 10 == 0:
-            print("step: {} loss: {}".format(i, loss))
+            _LOGGER.info("batch: {} loss: {}".format(i, loss))
+
+        if i % 100 == 0:
             plotter.plot('loss', 'train', 'Loss', i, loss.item())
 
         if i % 1000 == 0: 
@@ -68,14 +70,17 @@ for i, data in enumerate(train_iter):
 
             test_sentences = pad_sequence(list(map(prepare_sequence, test_sentences))).cuda()
             print(torch.exp(qt(test_sentences)))
-            print(torch.exp(scores))
+
             savepath = "../checkpoints/model-{}.pth".format(i)
             print("Saving file at location : {}".format(savepath))
+
             torch.save(qt.state_dict(), savepath)
 
         loss.backward()
         nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
         optimizer.step()
+
     except Exception as e:
-        print("Whoops: {}".format(e))
+        # print("Whoops: {}".format(e))
+        _LOGGER.exception(e)
 
