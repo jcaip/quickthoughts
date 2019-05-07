@@ -2,12 +2,12 @@ from torch.utils.data.dataset import Dataset
 from util import _WV_MODEL, prepare_sequence, base_dir
 from train import data_path
 import multiprocessing
-import cPickle as pickle
+import pickle
 
 #this function  should  process all.txt and removes all lines that are empty assuming the vocab
 def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
     pool = multiprocessing.Pool(10)
-    with open(file_path, encoding='ISO-8859-1') as read_file, open(write_path) as write_file:
+    with open(file_path, encoding='ISO-8859-1') as read_file, open(write_path, "w+") as write_file:
         i, j= 0, 0
         for result in p.imap(prepare_sequence, read_file):
             i+=1
