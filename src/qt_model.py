@@ -22,7 +22,8 @@ class Encoder(nn.Module):
         hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
 
         output, hidden = self.gru(embeds, hidden)
-        last_outputs = out[:, lenghts-1, :]
+        last_outputs = output[:, lengths-1, :]
+        print(last_outputs)
         return last_outputs
 
     def last_timestep(self, unpacked, lengths):
