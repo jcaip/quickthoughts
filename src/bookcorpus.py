@@ -1,7 +1,7 @@
 from torch.utils.data.dataset import Dataset
 from util import _WV_MODEL, prepare_sequence, base_dir
 import multiprocessing
-import pickle
+import json
 import torch
 
 #this function  should  process all.txt and removes all lines that are empty assuming the vocab
@@ -13,7 +13,7 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
             i+=1
             if len(result) != 0:
                j+=1
-               write_file.write(pickle.dumps(result, 0).decode('ascii'))
+               write_file.write("{}\n".format(json.dumps(result)))
                print("processed: {} wrote: {}".format(i, j))
     pool.close()
 
@@ -25,7 +25,7 @@ class BookCorpus(Dataset):
             self.examples = list(f)
 
     def __getitem__(self, i):
-        return torch.LongTensor(pickle.loads(examples[i]).encode('ascii'))
+        return torch.LongTensor(json.loads(self.examples[i]))
 
     def __len__(self):
         #hack for now, hardcoded length
