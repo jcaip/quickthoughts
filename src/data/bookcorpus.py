@@ -1,6 +1,5 @@
 from torch.utils.data.dataset import Dataset
 from util import _WV_MODEL, prepare_sequence
-from multiprocessing import Pool
 
 #this function  should  process all.py
 def preprocess():
