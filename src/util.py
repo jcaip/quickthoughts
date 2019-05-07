@@ -12,7 +12,6 @@ logging.basicConfig(
 
 _LOGGER = logging.getLogger(__name__)
 
-
 base_dir = '/home/jcjessecai/quickthoughts'
 vec_path = '{}/GoogleNews-vectors-negative300.bin'.format(base_dir)
 _WV_MODEL = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000)
@@ -24,6 +23,7 @@ def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50):
     if len(seq) == 0:
         _LOGGER.exception("WRONG: {}".format(seq))
         assert False
+    return seq
 
 class VisdomLinePlotter(object):
 
