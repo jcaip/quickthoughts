@@ -7,19 +7,20 @@ import torch
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
-    # 
     level=logging.INFO,
     datefmt='%Y-%m-%d %H:%M:%S')
 
 _LOGGER = logging.getLogger(__name__)
 
-vec_path = '/home/jcjessecai/quickthoughts/GoogleNews-vectors-negative300.bin'
+
+from train import base_dir
+vec_path = '{}/GoogleNews-vectors-negative300.bin'.format(base_dir)
 wv_model = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000)
 
-def prepare_sequence(text, vocab=wv_model.vocab):
-    tokens = list(tokenize(text))
-    pruned = tokens[:min(50, len(tokens))]
-    return torch.LongTensor([vocab[x].index for x in filter(lambda w: w in vocab, pruned)])
+#TODO: Make this faster and better
+def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50):
+    pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
+    return torch.LongTensor([vocab[x].index for x, _ in pruned_sequence])
 
 class VisdomLinePlotter(object):
 
@@ -38,4 +39,3 @@ class VisdomLinePlotter(object):
             ))
         else:
             self.viz.line(X=np.array([x]), Y=np.array([y]), env=self.env, win=self.plots[var_name], name=split_name, update = 'append')
-

@@ -1,40 +1,44 @@
 import torch
 import torch.nn as nn
-from util import wv_model
-
-
-
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from util import _WV_MODEL
 class Encoder(nn.Module):
 
     def __init__(self, wv_model, hidden_dim=1000):
         super(Encoder, self).__init__()
 
         self.hidden_size = hidden_dim
-        self.embeddings = nn.Embedding(*wv_model.vectors.shape)
-        self.embeddings.weight = torch.nn.Parameter(torch.from_numpy(wv_model.vectors), 
-                                                    requires_grad=False)
-        self.gru = nn.GRU(wv_model.vectors.shape[1], hidden_dim)
-                                                    
-    def forward(self, inputs):
-        embeds = self.embeddings(inputs)
-        hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
-        out, hidden = self.gru(embeds, hidden)
+        self.embeddings = nn.Embedding(*_WV_MODEL.vectors.shape)
+        self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors), requires_grad=False)
+        self.gru = nn.GRU(_WV_MODEL.vectors.shape[1], hidden_dim)
 
+    # input should be a packed sequence                                                    
+    def forward(self, packed_input):
+        #unpack to get the info we need
+        raw_inputs, lengths = pad_packed_sequence(packed_input)
+        embeds = self.embeddings(raw_inputs)
+        hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
+        packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+        out, hidden = self.gru(packed, hidden)
+
+        #I shouldn't need to unpack it ihink
+        print(out[-1])
         return out[-1]
 
 class QuickThoughts(nn.Module):
 
     def __init__(self, encoder='bow'):
         super(QuickThoughts, self).__init__()
-        self.enc_f = Encoder(wv_model)
-        self.enc_g = Encoder(wv_model)
-        self.softmax = nn.LogSoftmax(dim=0)
+        self.enc_f = Encoder(_WV_MODEL)
+        self.enc_g = Encoder(_WV_MODEL)
+        self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, inputs):
         encoding_f = self.enc_f(inputs)
         encoding_g = self.enc_g(inputs)
 
         scores = torch.matmul(encoding_f, encoding_g.t())
+        # need to zero out when it's the same sentence
         mask = torch.eye(len(scores)).byte().cuda()
         scores.masked_fill_(mask, 0)    
 

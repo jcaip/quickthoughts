@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn.utils.rnn import pad_sequence
+from torch.nn.utils.rnn import pack_sequence
 from data.bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from pprint import pprint
@@ -9,78 +9,89 @@ from util import prepare_sequence, VisdomLinePlotter
 from torch.utils.data.dataloader import DataLoader
 from util import _LOGGER
 
-cuda = torch.device('cuda')
-batch_size = 400
 context_size = 1
+batch_size = 400
+norm_threshold = 1.0 
+num_epochs = 5
 lr = 5e-4
-norm_threshold=1.0 
 
-data_path = '/home/jcjessecai/quickthoughts/all.txt'
-bc = BookCorpus(data_path)
-train_iter = DataLoader(bc, batch_size=batch_size, num_workers=10, collate_fn=pad_sequence)
+base_dir = '/home/jcjessecai/quickthoughts'
+data_path = "{}/all.txt".format(base_dir)
+checkpoint_dir = '{}/checkpoints/'.format(base_dir)
+
+bookcorpus = BookCorpus(data_path)
+train_iter = DataLoader(bookcorpus,
+                        batch_size=batch_size,
+                        num_workers=10,
+                        collate_fn=lambda x: pack_sequence(x, enforce_sorted=False))
 
 #define our model
-qt = QuickThoughts()
-qt = qt.cuda()
+qt = QuickThoughts().cuda()
 
-# some debugging
+# some debugging info
 for name, param in qt.named_parameters():
     if param.requires_grad:
-        _LOGGER.info(name, param.data.size())
+        _LOGGER.info("name: {} size: {}".format(name, param.data.shape))
 
+#initializing
 plotter = VisdomLinePlotter()
 
+#optimizer and loss function
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=lr)
 loss_function = nn.KLDivLoss(reduction='batchmean')
 
 _LOGGER.info("Starting training")
 
+#TODO: finish this metric later
 def eval_batch_accuracy(scores, target):
     scores.max(1)
 
-for i, data in enumerate(train_iter):
-    try:
-        qt.zero_grad()
-        data = data.cuda()
-        scores = qt(data)
+def show_test_data_similarity(qt):
+    test_sentences =  [ "What is going on?",
+                        "Let's go eat.",
+                        "The engine won't start.",
+                        "I'm hungry now."]
 
-        #does this all on the gpu so hopefully faster
-        targets = torch.zeros(batch_size, batch_size)
-        for offset in [-1, 1]:
-            targets += torch.diag(torch.ones(batch_size-1), diagonal=offset)
-        targets = targets / targets.sum(1, keepdim=True)
-        targets = targets.cuda()
+    pprint(test_sentences)
+    test_sentences = pad_sequence(list(map(prepare_sequence, test_sentences))).cuda()
+    print(torch.exp(qt(test_sentences)))
 
+for j in range(num_epochs):
+    for i, data in enumerate(train_iter):
+        try:
+            qt.zero_grad()
 
-        loss = loss_function(scores, targets)
-        
-        if i % 10 == 0:
-            _LOGGER.info("batch: {} loss: {}".format(i, loss))
+            data = data.cuda()
+            #this gives the log softmax of the scores
+            scores = qt(data)
 
-        if i % 100 == 0:
-            plotter.plot('loss', 'train', 'Loss', i, loss.item())
+            # generate targets softmax
+            targets = torch.zeros(batch_size, batch_size)
+            for offset in [-1, 1]:
+                targets += torch.diag(torch.ones(batch_size-1), diagonal=offset)
+            targets /= targets.sum(1, keepdim=True)
+            targets = targets.cuda()
 
-        if i % 1000 == 0: 
-            test_sentences =  [ "What is going on?",
-                               "Let's go eat.",
-                               "The engine won't start.",
-                               "I'm hungry now."]
+            loss = loss_function(scores, targets)
 
-            pprint(test_sentences)
+            loss.backward()
 
-            test_sentences = pad_sequence(list(map(prepare_sequence, test_sentences))).cuda()
-            print(torch.exp(qt(test_sentences)))
+            nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
 
-            savepath = "../checkpoints/model-{}.pth".format(i)
-            print("Saving file at location : {}".format(savepath))
+            optimizer.step()
+            
+            if i % 10 == 0:
+                _LOGGER.info("epoch: {} batch: {} loss: {}".format(j, i, loss))
 
-            torch.save(qt.state_dict(), savepath)
+            if i % 100 == 0:
+                plotter.plot('loss', 'train', 'Loss', i, loss.item())
 
-        loss.backward()
-        nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
-        optimizer.step()
+            if i % 1000 == 0: 
+                show_test_data_similarity(qt)
+                savepath = "{}/{}/model-{}.pth".format(checkpoint_dir, "test", i)
+                _LOGGER.info("Saving file at location : {}".format(savepath))
+                torch.save(qt.state_dict(), savepath)
 
-    except Exception as e:
-        # print("Whoops: {}".format(e))
-        _LOGGER.exception(e)
+        except Exception as e:
+            _LOGGER.exception(e)
 
