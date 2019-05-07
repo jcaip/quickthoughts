@@ -1,6 +1,5 @@
 from torch.utils.data.dataset import Dataset
 from util import _WV_MODEL, prepare_sequence, base_dir
-from train import data_path
 import multiprocessing
 import pickle
 
@@ -33,5 +32,5 @@ class BookCorpus(Dataset):
 
 
 if __name__ == "__main__":
-    preprocess(data_path, "{}/cleaned.txt".format(base_dir))
+    preprocess("{}/all.txt".format(base_dir), "{}/cleaned.txt".format(base_dir))
 
