@@ -2,6 +2,7 @@ from torch.utils.data.dataset import Dataset
 from util import _WV_MODEL, prepare_sequence, base_dir
 import multiprocessing
 import pickle
+import torch
 
 #this function  should  process all.txt and removes all lines that are empty assuming the vocab
 def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
@@ -21,10 +22,10 @@ class BookCorpus(Dataset):
         print("Reading the data")
         self.file_path=file_path
         with open(self.file_path, encoding='ISO-8859-1') as f:
-            self.examples = (f)
+            self.examples = list(f)
 
     def __getitem__(self, i):
-        return torch.LongTensor(pickle.loads(examples[i]))
+        return torch.LongTensor(pickle.loads(examples[i]).encode('ascii'))
 
     def __len__(self):
         #hack for now, hardcoded length
