@@ -12,7 +12,7 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
             i+=1
             if len(result) != 0:
                j+=1
-               write_file.write(pickle.dumps(result))
+               write_file.write(pickle.dumps(result, 0).decode('ascii'))
                print("processed: {} wrote: {}".format(i, j))
     pool.close()
 
