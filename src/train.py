@@ -74,7 +74,9 @@ for j in range(num_epochs):
             loss = loss_function(scores, targets)
 
             loss.backward()
+
             nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
+
             optimizer.step()
             
             if i % 10 == 0:
