@@ -2,12 +2,12 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 from torch.nn.utils.rnn import pack_sequence
-from data.bookcorpus import BookCorpus
+from bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from pprint import pprint
 from util import prepare_sequence, VisdomLinePlotter
 from torch.utils.data.dataloader import DataLoader
-from util import _LOGGER
+from util import _LOGGER, base_dir
 
 context_size = 1
 batch_size = 400
@@ -15,7 +15,6 @@ norm_threshold = 1.0
 num_epochs = 5
 lr = 5e-4
 
-base_dir = '/home/jcjessecai/quickthoughts'
 data_path = "{}/all.txt".format(base_dir)
 checkpoint_dir = '{}/checkpoints/'.format(base_dir)
 
