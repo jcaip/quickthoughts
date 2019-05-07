@@ -1,9 +1,7 @@
 import torch
 import torch.nn as nn
+from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from util import _WV_MODEL
-
-
-
 class Encoder(nn.Module):
 
     def __init__(self, wv_model, hidden_dim=1000):
@@ -13,23 +11,26 @@ class Encoder(nn.Module):
         self.embeddings = nn.Embedding(*_WV_MODEL.vectors.shape)
         self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors), requires_grad=False)
         self.gru = nn.GRU(_WV_MODEL.vectors.shape[1], hidden_dim)
-                                                    
-    def forward(self, inputs):
-        embeds = self.embeddings(inputs)
+
+    # input should be a packed sequence                                                    
+    def forward(self, packed_input):
+        #unpack to get the info we need
+        raw_inputs, lengths = pad_packed_sequence(packed_input)
+        embeds = self.embeddings(raw_inputs)
         hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
-        out, hidden = self.gru(embeds, hidden)
+        packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
+        out, hidden = self.gru(packed, hidden)
 
-        masks = (vlens-1).view(1, -1, 1).expand(max_seq_len, outputs.size(1), outputs.size(2))
-        out = out.gather(0, masks)[0]
-
+        #I shouldn't need to unpack it ihink
+        print(out[-1])
         return out[-1]
 
 class QuickThoughts(nn.Module):
 
     def __init__(self, encoder='bow'):
         super(QuickThoughts, self).__init__()
-        self.enc_f = Encoder(wv_model)
-        self.enc_g = Encoder(wv_model)
+        self.enc_f = Encoder(_WV_MODEL)
+        self.enc_g = Encoder(_WV_MODEL)
         self.softmax = nn.LogSoftmax(dim=1)
 
     def forward(self, inputs):

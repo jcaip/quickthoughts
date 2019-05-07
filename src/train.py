@@ -22,7 +22,7 @@ bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
                         batch_size=batch_size,
                         num_workers=10,
-                        collate_fn=pad_sequence)
+                        collate_fn=pack_sequence)
 
 #define our model
 qt = QuickThoughts().cuda()
@@ -59,6 +59,7 @@ for j in range(num_epochs):
     for i, data in enumerate(train_iter):
         try:
             qt.zero_grad()
+
             data = data.cuda()
             #this gives the log softmax of the scores
             scores = qt(data)
