@@ -1,5 +1,5 @@
 from torch.utils.data.dataset import Dataset
-from util import _WV_MODEL, prepare_sequence, base_dir
+from util import _WV_MODEL, prepare_sequence, base_dir, _LOGGER
 import multiprocessing
 import json
 import torch
@@ -12,7 +12,7 @@ def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50, return_tensor=True
 
 #this function  should  process all.txt and removes all lines that are empty assuming the vocab
 def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
-    pool = multiprocessing.Pool(10)
+    pool = multiprocessing.Pool(16)
     with open(file_path, encoding='ISO-8859-1') as read_file, open(write_path, "w+") as write_file:
         i, j= 0, 0
         for result in pool.imap(prepare_sequence, read_file):
@@ -21,9 +21,9 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
                j+=1
                write_file.write("{}\n".format(json.dumps(result)))
 
-        if i % 100000 == 0:
-            _LOGGER.info(json.dumps(result))
-            _LOGGER.info("processed: {} wrote: {}".format(i, j))
+            if i % 100000 == 0:
+                _LOGGER.info(json.dumps(result))
+                _LOGGER.info("processed: {} wrote: {}".format(i, j))
     pool.close()
 
 class BookCorpus(Dataset):
