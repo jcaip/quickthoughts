@@ -52,7 +52,7 @@ def show_test_data_similarity(qt):
                         "I'm hungry now."]
 
     pprint(test_sentences)
-    test_sentences = pack_sequence(list(map(prepare_sequence, test_sentences))).cuda()
+    test_sentences = pack_sequence(list(map(prepare_sequence, test_sentences)), enforce_sorted=False).cuda()
     print(torch.exp(qt(test_sentences)))
 
 for j in range(num_epochs):
@@ -92,7 +92,7 @@ for j in range(num_epochs):
 
         if i % 1000 == 0: 
             show_test_data_similarity(qt)
+            savepath = "{}model-{}.pth".format(checkpoint_dir, i)
             _LOGGER.info("Saving file at location : {}".format(savepath))
-            savepath = "{}/{}/model-{}.pth".format(checkpoint_dir, "test", i)
             torch.save(qt.state_dict(), savepath)
         

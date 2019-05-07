@@ -16,9 +16,7 @@ class Encoder(nn.Module):
     def forward(self, packed_input):
         #unpack to get the info we need
         raw_inputs, lengths = pad_packed_sequence(packed_input)
-        print(lengths)
         max_seq_len = torch.max(lengths)
-        print(max_seq_len)
 
         embeds = self.embeddings(raw_inputs)
         hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
@@ -28,9 +26,7 @@ class Encoder(nn.Module):
         output , _ = pad_packed_sequence(packed_output)
 
         masks = (lengths-1).unsqueeze(0).unsqueeze(2).expand(max_seq_len, output.size(1), output.size(2)).cuda()
-        print(masks.shape)
         last_outputs = output.gather(0, masks)[0]
-        print(last_outputs.shape)
 
         return last_outputs
 
