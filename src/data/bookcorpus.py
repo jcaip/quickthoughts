@@ -10,7 +10,6 @@ class BookCorpus(Dataset):
     def __init__(self, file_path, max_len=50):
         print("Reading the data")
         self.file_path=file_path
-        pool = Pool(processes=10)
         with open(self.file_path, encoding='ISO-8859-1') as f:
             self.examples = list(f)
 
