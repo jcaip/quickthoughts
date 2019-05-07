@@ -16,14 +16,21 @@ class Encoder(nn.Module):
     def forward(self, packed_input):
         #unpack to get the info we need
         raw_inputs, lengths = pad_packed_sequence(packed_input)
+        print(lengths)
+        max_seq_len = torch.max(lengths)
+        print(max_seq_len)
+
         embeds = self.embeddings(raw_inputs)
         hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
 
         packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
-
         packed_output, _ = self.gru(packed, hidden)
-        unpacked, _ = pad_packed_sequence(packed_output)
-        last_outputs = self.last_timestep(unpacked, lengths)
+        output , _ = pad_packed_sequence(packed_output)
+
+        masks = (lengths-1).unsqueeze(0).unsqueeze(2).expand(max_seq_len, output.size(1), output.size(2)).cuda()
+        print(masks.shape)
+        last_outputs = output.gather(0, masks)[0]
+        print(last_outputs.shape)
 
         return last_outputs
 
@@ -35,7 +42,7 @@ class Encoder(nn.Module):
         """
         # Index of the last output for each sequence.
         idx = (lengths - 1).view(-1, 1).expand(unpacked.size(1),
-                                               unpacked.size(2)).unsqueeze(0)
+                                               unpacked.size(2)).unsqueeze(0).cuda()
         return unpacked.gather(0, idx).squeeze()
 class QuickThoughts(nn.Module):
 

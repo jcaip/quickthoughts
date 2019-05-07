@@ -4,4 +4,5 @@ checkpoints/*
 src/__pycache__/*
 src/data/__pycache__/*
 all.txt
+all.bak
 .vscode/*

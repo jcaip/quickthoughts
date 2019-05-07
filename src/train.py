@@ -22,7 +22,7 @@ bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
                         batch_size=batch_size,
                         num_workers=10,
-                        collate_fn=lambda x: pack_sequence(filter(None, x), enforce_sorted=False))
+                        collate_fn=lambda x: pack_sequence(list(filter(lambda y: y.numel() > 0, x)), enforce_sorted=False))
 
 #define our model
 qt = QuickThoughts().cuda()
@@ -52,45 +52,47 @@ def show_test_data_similarity(qt):
                         "I'm hungry now."]
 
     pprint(test_sentences)
-    test_sentences = pad_sequence(list(map(prepare_sequence, test_sentences))).cuda()
+    test_sentences = pack_sequence(list(map(prepare_sequence, test_sentences))).cuda()
     print(torch.exp(qt(test_sentences)))
 
 for j in range(num_epochs):
+
+    running_losses = []
+
     for i, data in enumerate(train_iter):
-        try:
-            qt.zero_grad()
+        qt.zero_grad()
 
-            data = data.cuda()
-            #this gives the log softmax of the scores
-            scores = qt(data)
+        data = data.cuda()
+        #this gives the log softmax of the scores
+        scores = qt(data)
 
-            # generate targets softmax
-            targets = torch.zeros(batch_size, batch_size)
-            for offset in [-1, 1]:
-                targets += torch.diag(torch.ones(batch_size-1), diagonal=offset)
-            targets /= targets.sum(1, keepdim=True)
-            targets = targets.cuda()
+        # generate targets softmax
+        targets = torch.zeros(batch_size, batch_size)
+        for offset in [-1, 1]:
+            targets += torch.diag(torch.ones(batch_size-abs(offset)), diagonal=offset)
+        targets /= targets.sum(1, keepdim=True)
+        targets = targets.cuda()
 
-            loss = loss_function(scores, targets)
+        loss = loss_function(scores, targets)
 
-            loss.backward()
+        loss.backward()
 
-            nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
+        nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
 
-            optimizer.step()
-            
-            if i % 10 == 0:
-                _LOGGER.info("epoch: {} batch: {} loss: {}".format(j, i, loss))
+        optimizer.step()
 
-            if i % 100 == 0:
-                plotter.plot('loss', 'train', 'Loss', i, loss.item())
+        if i % 10 == 0:
+            _LOGGER.info("epoch: {} batch: {} loss: {}".format(j, i, loss))
+            running_losses.append(loss.item())
+            if len(running_losses) >  10:
+                running_losses.pop(0)
 
-            if i % 1000 == 0: 
-                show_test_data_similarity(qt)
-                savepath = "{}/{}/model-{}.pth".format(checkpoint_dir, "test", i)
-                _LOGGER.info("Saving file at location : {}".format(savepath))
-                torch.save(qt.state_dict(), savepath)
+        if i % 100 == 0:
+            plotter.plot('loss', 'train', 'Loss', i, sum(running_losses) / len(running_losses))
 
-        except Exception as e:
-            _LOGGER.exception(e)
-
+        if i % 1000 == 0: 
+            show_test_data_similarity(qt)
+            _LOGGER.info("Saving file at location : {}".format(savepath))
+            savepath = "{}/{}/model-{}.pth".format(checkpoint_dir, "test", i)
+            torch.save(qt.state_dict(), savepath)
+        
