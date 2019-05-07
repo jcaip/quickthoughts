@@ -15,8 +15,9 @@ norm_threshold = 1.0
 num_epochs = 5
 lr = 5e-4
 
-data_path = '/home/jcaip/workspace/quickthoughts/bookcorpus/all.txt'
-checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/'
+base_dir = '/home/jcjessecai/quickthoughts'
+data_path = "{}/all.txt".format(base_dir)
+checkpoint_dir = '{}/checkpoints/'.format(base_dir)
 
 bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
