@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn.utils.rnn import pad_sequence
+from torch.nn.utils.rnn import pad_sequence, pack_sequence
 from bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from pprint import pprint
