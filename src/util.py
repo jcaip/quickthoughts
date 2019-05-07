@@ -4,6 +4,7 @@ from gensim.utils import tokenize
 from visdom import Visdom
 import numpy as np
 import torch
+import os
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -12,16 +13,10 @@ logging.basicConfig(
 
 _LOGGER = logging.getLogger(__name__)
 
-base_dir = '/home/jcjessecai/quickthoughts'
+base_dir = os.getenv('DIR', '/home/jcjessecai/quickthoughts')
 vec_path = '{}/GoogleNews-vectors-negative300.bin'.format(base_dir)
 _WV_MODEL = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000)
 
-def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50, return_tensor=True):
-    pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
-    seq = [vocab[x].index for x, _ in pruned_sequence]
-    if return_tensor:
-        return torch.LongTensor(seq)
-    return seq
 
 class VisdomLinePlotter(object):
 

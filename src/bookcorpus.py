@@ -22,9 +22,9 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
                j+=1
 
             if i % 1e6 == 0:
-                _LOGGER.info("processed: {0:.2f} wrote: {} ".format(i / 68e6, j))
+                percentage = (i / 1e6) / 68.0
+                _LOGGER.info("processed: {0:.2f}% wrote: {} ".format(percentage, j))
     pool.close()
-
 
 class BookCorpus(Dataset):
     def __init__(self, file_path, max_len=50):
@@ -38,7 +38,6 @@ class BookCorpus(Dataset):
         return torch.LongTensor(prepare_sequence(self.examples[i]))
 
     def __len__(self):
-        #hack for now, hardcoded length
         return len(self.examples)
 
 if __name__ == '__main__':
