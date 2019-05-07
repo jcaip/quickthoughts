@@ -7,13 +7,13 @@ import torch
 def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50):
     pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
     seq = [vocab[x].index for x, _ in pruned_sequence]
-    return seq
+    return (seq, text)
 
 
 #this function  should  process all.txt and removes all lines that are empty assuming the vocab
 def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
     pool = multiprocessing.Pool(32)
-    with open(file_path, encoding='ISO-8859-1') as read_file, open(write_path, "w+") as write_file:
+    with open(file_path) as read_file, open(write_path, "w+") as write_file:
         i, j= 0, 0
         for result, line in pool.imap(prepare_sequence, read_file):
             i+=1
