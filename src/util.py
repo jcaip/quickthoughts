@@ -20,7 +20,10 @@ _WV_MODEL = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000
 #TODO: Make this faster and better
 def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50):
     pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
-    return torch.LongTensor([vocab[x].index for x, _ in pruned_sequence])
+    seq = torch.LongTensor([vocab[x].index for x, _ in pruned_sequence])
+    if len(seq) == 0:
+        _LOGGER.exception("WRONG: {}".format(seq))
+        assert False
 
 class VisdomLinePlotter(object):
 
