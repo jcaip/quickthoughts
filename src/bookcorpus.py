@@ -29,7 +29,7 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
 
 class BookCorpus(Dataset):
     def __init__(self, file_path, max_len=50):
-        print("Reading the data")
+        _LOGGER.info("Reading the data")
         self.file_path=file_path
         with open(self.file_path, encoding='ISO-8859-1') as f:
             self.examples = list(f)
@@ -42,8 +42,4 @@ class BookCorpus(Dataset):
         #hack for now, hardcoded length
         return len(self.examples)
 
-
-if __name__ == "__main__":
-    _LOGGER.info("Working")
-    preprocess("{}/all.txt".format(base_dir), "{}/cleaned.txt".format(base_dir))
 
