@@ -18,13 +18,25 @@ class Encoder(nn.Module):
         raw_inputs, lengths = pad_packed_sequence(packed_input)
         embeds = self.embeddings(raw_inputs)
         hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
+
         packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
-        out, hidden = self.gru(packed, hidden)
 
-        #I shouldn't need to unpack it ihink
-        print(out[-1])
-        return out[-1]
+        packed_output, _ = self.gru(packed, hidden)
+        unpacked, _ = pad_packed_sequence(packed_output)
+        last_outputs = self.last_timestep(unpacked, lengths)
 
+        return last_outputs
+
+    def last_timestep(self, unpacked, lengths):
+        """last_timestep
+        computes the index of the last timestep to get the output
+        :param unpacked:
+        :param lengths:
+        """
+        # Index of the last output for each sequence.
+        idx = (lengths - 1).view(-1, 1).expand(unpacked.size(1),
+                                               unpacked.size(2)).unsqueeze(0)
+        return unpacked.gather(0, idx).squeeze()
 class QuickThoughts(nn.Module):
 
     def __init__(self, encoder='bow'):
