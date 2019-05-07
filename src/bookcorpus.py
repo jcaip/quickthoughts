@@ -20,7 +20,10 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
             if len(result) != 0:
                j+=1
                write_file.write("{}\n".format(json.dumps(result)))
-               print("processed: {} wrote: {}".format(i, j))
+
+        if i % 100000 == 0:
+            _LOGGER.info(json.dumps(result))
+            _LOGGER.info("processed: {} wrote: {}".format(i, j))
     pool.close()
 
 class BookCorpus(Dataset):
@@ -40,5 +43,6 @@ class BookCorpus(Dataset):
 
 
 if __name__ == "__main__":
+    _LOGGER.info("Working")
     preprocess("{}/all.txt".format(base_dir), "{}/cleaned.txt".format(base_dir))
 
