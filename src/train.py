@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn.utils.rnn import pad_sequence
+from torch.nn.utils.rnn import pack_sequence
 from data.bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from pprint import pprint
@@ -22,7 +22,7 @@ bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
                         batch_size=batch_size,
                         num_workers=10,
-                        collate_fn=pack_sequence)
+                        collate_fn=lambda x: pack_sequence(x, enforce_sorted=False))
 
 #define our model
 qt = QuickThoughts().cuda()
