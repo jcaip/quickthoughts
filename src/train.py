@@ -22,7 +22,7 @@ bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
                         batch_size=batch_size,
                         num_workers=10,
-                        collate_fn=lambda x: pack_sequence(x, enforce_sorted=False))
+                        collate_fn=lambda x: pack_sequence(filter(None, x), enforce_sorted=False))
 
 #define our model
 qt = QuickThoughts().cuda()
