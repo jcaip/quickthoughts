@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.optim as optim
-from torch.nn.utils.rnn import pack_sequence
+from torch.nn.utils.rnn import pad_sequence
 from bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from pprint import pprint
@@ -22,7 +22,7 @@ bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
                         batch_size=batch_size,
                         num_workers=10,
-                        collate_fn=lambda x: pack_sequence(list(filter(lambda y: y.numel() > 0, x)), enforce_sorted=False))
+                        collate_fn=lambda x: pack_sequence(x, enforce_sorted=False))
 
 #define our model
 qt = QuickThoughts().cuda()
@@ -74,11 +74,8 @@ for j in range(num_epochs):
         targets = targets.cuda()
 
         loss = loss_function(scores, targets)
-
         loss.backward()
-
         nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
-
         optimizer.step()
 
         if i % 10 == 0:

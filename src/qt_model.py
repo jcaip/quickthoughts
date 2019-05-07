@@ -16,18 +16,13 @@ class Encoder(nn.Module):
     def forward(self, packed_input):
         #unpack to get the info we need
         raw_inputs, lengths = pad_packed_sequence(packed_input)
-        max_seq_len = torch.max(lengths)
 
         embeds = self.embeddings(raw_inputs)
+
         hidden = torch.zeros(1, embeds.shape[1], self.hidden_size).cuda()
 
-        packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
-        packed_output, _ = self.gru(packed, hidden)
-        output , _ = pad_packed_sequence(packed_output)
-
-        masks = (lengths-1).unsqueeze(0).unsqueeze(2).expand(max_seq_len, output.size(1), output.size(2)).cuda()
-        last_outputs = output.gather(0, masks)[0]
-
+        output, hidden = self.gru(embeds, hidden)
+        last_outputs = out[:, lenghts-1, :]
         return last_outputs
 
     def last_timestep(self, unpacked, lengths):
