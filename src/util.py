@@ -13,7 +13,7 @@ logging.basicConfig(
 
 _LOGGER = logging.getLogger(__name__)
 
-vec_path = '/home/jcaip/workspace/quickthoughts/GoogleNews-vectors-negative300.bin'
+vec_path = '/home/jcjessecai/quickthoughts/GoogleNews-vectors-negative300.bin'
 wv_model = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000)
 
 def prepare_sequence(text, vocab=wv_model.vocab):

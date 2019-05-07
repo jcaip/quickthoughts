@@ -15,7 +15,7 @@ context_size = 1
 lr = 5e-4
 norm_threshold=1.0 
 
-data_path = '/home/jcaip/workspace/quickthoughts/bookcorpus/all.txt'
+data_path = '/home/jcjessecai/quickthoughts/all.txt'
 bc = BookCorpus(data_path)
 train_iter = DataLoader(bc, batch_size=batch_size, num_workers=10, collate_fn=pad_sequence)
 
