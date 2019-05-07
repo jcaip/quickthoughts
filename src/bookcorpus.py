@@ -4,7 +4,7 @@ import multiprocessing
 import json
 import torch
 
-def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50, return_tensor=True):
+def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50):
     pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
     seq = [vocab[x].index for x, _ in pruned_sequence]
     return seq
@@ -15,13 +15,13 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
     pool = multiprocessing.Pool(32)
     with open(file_path, encoding='ISO-8859-1') as read_file, open(write_path, "w+") as write_file:
         i, j= 0, 0
-        for result in pool.imap(prepare_sequence, read_file):
+        for result, line in pool.imap(prepare_sequence, read_file):
             i+=1
             if len(result) != 0:
                j+=1
-               write_file.write(",".join(result) + "\n")
+               write_file.write(line)
 
-            if i % 100000 == 0:
+            if i % 1000000 == 0:
                 _LOGGER.info(json.dumps(result))
                 _LOGGER.info("processed: {} wrote: {}".format(i, j))
     pool.close()
@@ -42,4 +42,6 @@ class BookCorpus(Dataset):
         #hack for now, hardcoded length
         return len(self.examples)
 
-
+if __name__ == '__main__':
+    _LOGGER.info("Starting processing")
+    preprocess("{}/all.txt".format(base_dir), "{}/cleaned.txt".format(base_dir))
