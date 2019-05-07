@@ -21,8 +21,7 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
                j+=1
                write_file.write(line)
 
-            if i % 1000000 == 0:
-                _LOGGER.info(json.dumps(result))
+            if i % 1e6 == 0:
                 _LOGGER.info("processed: {} wrote: {}".format(i, j))
     pool.close()
 
