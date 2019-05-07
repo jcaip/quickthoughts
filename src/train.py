@@ -15,7 +15,7 @@ norm_threshold = 1.0
 num_epochs = 5
 lr = 5e-4
 
-data_path = "{}/all.txt".format(base_dir)
+data_path = "{}/cleaned.txt".format(base_dir)
 checkpoint_dir = '{}/checkpoints/'.format(base_dir)
 
 bookcorpus = BookCorpus(data_path)

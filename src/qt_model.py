@@ -30,16 +30,6 @@ class Encoder(nn.Module):
 
         return last_outputs
 
-    def last_timestep(self, unpacked, lengths):
-        """last_timestep
-        computes the index of the last timestep to get the output
-        :param unpacked:
-        :param lengths:
-        """
-        # Index of the last output for each sequence.
-        idx = (lengths - 1).view(-1, 1).expand(unpacked.size(1),
-                                               unpacked.size(2)).unsqueeze(0).cuda()
-        return unpacked.gather(0, idx).squeeze()
 class QuickThoughts(nn.Module):
 
     def __init__(self, encoder='bow'):

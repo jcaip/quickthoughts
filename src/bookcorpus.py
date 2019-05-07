@@ -18,11 +18,11 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
         for result, line in pool.imap(prepare_sequence, read_file):
             i+=1
             if len(result) != 0:
-               j+=1
                write_file.write(line)
+               j+=1
 
             if i % 1e6 == 0:
-                _LOGGER.info("processed: {} wrote: {}".format(i, j))
+                _LOGGER.info("processed: {0:.2f} wrote: {} ".format(i / 68e6, j))
     pool.close()
 
 
