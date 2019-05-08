@@ -23,12 +23,11 @@ class Encoder(nn.Module):
 
         packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
         packed_output, _ = self.gru(packed, hidden)
-        output , _ = pad_packed_sequence(packed_output)
+        unpacked, _ = pad_packed_sequence(packed_output)
 
-        masks = (lengths-1).unsqueeze(0).unsqueeze(2).expand(max_seq_len, output.size(1), output.size(2)).cuda()
-        last_outputs = output.gather(0, masks)[0]
-
-        return last_outputs
+        idx = (lengths - 1).view(-1, 1).expand(unpacked.size(1),
+                                               unpacked.size(2)).unsqueeze(0).cuda()
+        return unpacked.gather(0, idx).squeeze()
 
 class QuickThoughts(nn.Module):
 

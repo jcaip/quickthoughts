@@ -22,8 +22,8 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
                j+=1
 
             if i % 1e6 == 0:
-                percentage = (i / 1e6) / 68.0
-                _LOGGER.info("processed: {0:.2f}% wrote: {} ".format(percentage, j))
+                percentage = 100*(i / 1e6) / 68.0
+                _LOGGER.info("processed: {:.2f}% wrote: {} ".format(percentage, j))
     pool.close()
 
 class BookCorpus(Dataset):
