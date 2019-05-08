@@ -2,9 +2,10 @@ import logging
 from gensim.models import KeyedVectors
 from gensim.utils import tokenize
 from visdom import Visdom
+from torch.nn.utils.rnn import pack_sequence
 import numpy as np
 import torch
-import os
+from config import CONFIG
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -12,11 +13,35 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 _LOGGER = logging.getLogger(__name__)
+WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=10000)
 
-base_dir = os.getenv('DIR', '/home/jcjessecai/quickthoughts')
-vec_path = '{}/GoogleNews-vectors-negative300.bin'.format(base_dir)
-_WV_MODEL = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000)
+def safe_pack_sequence(x):
+    try:
+        return pack_sequence(x, enforce_sorted=False)
+    except Exception as e:
+        _LOGGER.exception(e)
 
+def log_param_info(model):
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            _LOGGER.debug("name: {} size: {}".format(name, param.data.shape))
+
+def checkpoint_training(checkpoint_dir, idx, model, optim, filename="checkpoint_latest"):
+    checkpoint_dict = {
+        'batch': idx,
+        'state_dict': model.state_dict(),
+        'optimizer': optim.state_dict(),
+    }
+    savepath = "{}/{}.pth".format(checkpoint_dir, filename)
+    _LOGGER.info("Saving file at location : {}".format(savepath))
+    torch.save(checkpoint_dict, savepath)
+
+def restore_training(checkpoint_dir, model, optimizer, filename="checkpoint_latest"):
+    checkpoint = torch.load("{}/{}.pth".format(checkpoint_dir, filename))
+    model.load_state_dict(checkpoint['state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    _LOGGER.info("Resuming training from index: {}".format(checkpoint['batch']))
+    return checkpoint['batch']
 
 class VisdomLinePlotter(object):
 
