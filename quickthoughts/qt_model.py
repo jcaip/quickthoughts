@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from util import log_param_info
+from quickthoughts.util import log_param_info
 
 class UniGRUEncoder(nn.Module):
 
