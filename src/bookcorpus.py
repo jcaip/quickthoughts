@@ -1,5 +1,5 @@
 from torch.utils.data.dataset import Dataset
-from util import _WV_MODEL, prepare_sequence, base_dir, _LOGGER
+from util import _WV_MODEL, base_dir, _LOGGER
 import multiprocessing
 import json
 import torch
@@ -35,7 +35,7 @@ class BookCorpus(Dataset):
 
     def __getitem__(self, i):
         # this should be faster??
-        return torch.LongTensor(prepare_sequence(self.examples[i]))
+        return torch.LongTensor(prepare_sequence(self.examples[i])[0])
 
     def __len__(self):
         return len(self.examples)

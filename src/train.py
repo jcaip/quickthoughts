@@ -5,7 +5,7 @@ from torch.nn.utils.rnn import pad_sequence, pack_sequence
 from bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from pprint import pprint
-from util import prepare_sequence, VisdomLinePlotter
+from util import VisdomLinePlotter
 from torch.utils.data.dataloader import DataLoader
 from util import _LOGGER, base_dir
 
@@ -46,14 +46,15 @@ def eval_batch_accuracy(scores, target):
     scores.max(1)
 
 def show_test_data_similarity(qt):
-    test_sentences =  [ "What is going on?",
-                        "Let's go eat.",
-                        "The engine won't start.",
-                        "I'm hungry now."]
+    # test_sentences =  [ "What is going on?",
+                        # "Let's go eat.",
+                        # "The engine won't start.",
+                        # "I'm hungry now."]
 
-    pprint(test_sentences)
-    test_sentences = pack_sequence(list(map(prepare_sequence, test_sentences)), enforce_sorted=False).cuda()
-    print(torch.exp(qt(test_sentences)))
+    # pprint(test_sentences)
+    # test_sentences = pack_sequence(list(map(prepare_sequence, test_sentences)), enforce_sorted=False).cuda()
+    # print(torch.exp(qt(test_sentences)))
+    pass
 
 for j in range(num_epochs):
 
