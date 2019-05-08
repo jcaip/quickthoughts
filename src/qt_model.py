@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from util import log_param_info
 
 class UniGRUEncoder(nn.Module):
 
@@ -34,7 +35,7 @@ class QuickThoughts(nn.Module):
         self.enc_target  = UniGRUEncoder(wv_model)
         self.enc_context = UniGRUEncoder(wv_model)
         self.log_softmax = nn.LogSoftmax(dim=1)
-        get_param_info(self)
+        log_param_info(self)
 
     def forward(self, inputs):
         encoding_f = self.enc_target(inputs)
