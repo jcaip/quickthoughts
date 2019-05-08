@@ -13,7 +13,7 @@ logging.basicConfig(
 
 _LOGGER = logging.getLogger(__name__)
 
-def prepare_sequence(text, vocab, max_len=50, return_original=False):
+def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50, return_original=False):
     pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
     seq = [vocab[x].index for x, _ in pruned_sequence]
     return (seq, text)
@@ -23,8 +23,8 @@ def preprocess(read_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
     pool = multiprocessing.Pool(8)
     with open(read_path) as read_file, open(write_path, "w+") as write_file:
         # should all be iterators so fast
-        write_file.write_lines(line for _, line in filter(itemgetter(0),
-                                                          pool.imap(prepare_sequence, read_file))
+        write_file.writelines(line for _ , line in filter(itemgetter(0),
+                                                           pool.imap(prepare_sequence, read_file)))
     pool.close()
 
 class BookCorpus(Dataset):
