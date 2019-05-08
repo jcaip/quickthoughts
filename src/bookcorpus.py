@@ -12,12 +12,12 @@ def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50):
 
 #this function  should  process all.txt and removes all lines that are empty assuming the vocab
 def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
-    pool = multiprocessing.Pool(32)
+    pool = multiprocessing.Pool(8)
     with open(file_path) as read_file, open(write_path, "w+") as write_file:
         i, j= 0, 0
         for result, line in pool.imap(prepare_sequence, read_file):
             i+=1
-            if len(result) != 0:
+            if result:
                write_file.write(line)
                j+=1
 

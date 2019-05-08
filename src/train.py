@@ -15,8 +15,8 @@ norm_threshold = 1.0
 num_epochs = 5
 lr = 5e-4
 
-data_path = "{}/cleaned.txt".format(base_dir)
-checkpoint_dir = '{}/checkpoints/'.format(base_dir)
+data_path = "{}/old_cleaned.txt".format(base_dir)
+checkpoint_dir = '{}/checkpoints'.format(base_dir)
 
 bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
@@ -61,36 +61,44 @@ for j in range(num_epochs):
     running_losses = []
 
     for i, data in enumerate(train_iter):
-        qt.zero_grad()
+        try:
+            qt.zero_grad()
 
-        data = data.cuda()
-        #this gives the log softmax of the scores
-        scores = qt(data)
+            data = data.cuda()
+            #this gives the log softmax of the scores
+            scores = qt(data)
 
-        # generate targets softmax
-        targets = torch.zeros(batch_size, batch_size)
-        for offset in [-1, 1]:
-            targets += torch.diag(torch.ones(batch_size-abs(offset)), diagonal=offset)
-        targets /= targets.sum(1, keepdim=True)
-        targets = targets.cuda()
+            # generate targets softmax
+            targets = torch.zeros(batch_size, batch_size)
+            for offset in [-1, 1]:
+                targets += torch.diag(torch.ones(batch_size-abs(offset)), diagonal=offset)
+            targets /= targets.sum(1, keepdim=True)
+            targets = targets.cuda()
 
-        loss = loss_function(scores, targets)
-        loss.backward()
-        nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
-        optimizer.step()
+            loss = loss_function(scores, targets)
+            loss.backward()
+            nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
+            optimizer.step()
 
-        if i % 10 == 0:
-            _LOGGER.info("epoch: {} batch: {} loss: {}".format(j, i, loss))
-            running_losses.append(loss.item())
-            if len(running_losses) >  10:
-                running_losses.pop(0)
+            if i % 10 == 0:
+                _LOGGER.info("epoch: {} batch: {} loss: {:.5f}".format(j, i, loss))
+                running_losses.append(loss.item())
+                if len(running_losses) >  10:
+                    running_losses.pop(0)
 
-        if i % 100 == 0:
-            plotter.plot('loss', 'train', 'Loss', i, sum(running_losses) / len(running_losses))
+            if i % 100 == 0:
+                plotter.plot('loss', 'train', 'Loss', i, sum(running_losses) / len(running_losses))
 
-        if i % 1000 == 0: 
-            show_test_data_similarity(qt)
-            savepath = "{}model-{}.pth".format(checkpoint_dir, i)
-            _LOGGER.info("Saving file at location : {}".format(savepath))
-            torch.save(qt.state_dict(), savepath)
-        
+            if i % 1000 == 0: 
+                show_test_data_similarity(qt)
+                savepath = "{}/model-{}.pth".format(checkpoint_dir, i)
+                _LOGGER.info("Saving file at location : {}".format(savepath))
+                torch.save(qt.state_dict(), savepath)
+            
+        except Exception as e:
+
+            _LOGGER.exception(e)
+            print("---------\n\n")
+
+
+
