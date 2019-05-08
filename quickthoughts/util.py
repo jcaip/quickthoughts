@@ -1,11 +1,8 @@
 import logging
-from gensim.models import KeyedVectors
-from gensim.utils import tokenize
+import torch
 from visdom import Visdom
 from torch.nn.utils.rnn import pack_sequence
 import numpy as np
-import torch
-from config import CONFIG
 
 logging.basicConfig(
     format='%(asctime)s %(levelname)-8s %(message)s',
@@ -13,7 +10,6 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S')
 
 _LOGGER = logging.getLogger(__name__)
-WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=10000)
 
 def safe_pack_sequence(x):
     try:
@@ -34,7 +30,7 @@ def checkpoint_training(checkpoint_dir, idx, model, optim, filename="checkpoint_
     }
     savepath = "{}/{}.pth".format(checkpoint_dir, filename)
     _LOGGER.info("Saving file at location : {}".format(savepath))
-    torch.save(checkpoint_dict, savepath)
+   torch.save(checkpoint_dict, savepath)
 
 def restore_training(checkpoint_dir, model, optimizer, filename="checkpoint_latest"):
     checkpoint = torch.load("{}/{}.pth".format(checkpoint_dir, filename))
@@ -60,3 +56,4 @@ class VisdomLinePlotter(object):
             ))
         else:
             self.viz.line(X=np.array([x]), Y=np.array([y]), env=self.env, win=self.plots[var_name], name=split_name, update = 'append')
+
