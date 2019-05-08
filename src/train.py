@@ -9,6 +9,7 @@ from util import VisdomLinePlotter
 from torch.utils.data.dataloader import DataLoader
 from util import _LOGGER, base_dir
 
+resume = False
 context_size = 1
 batch_size = 400
 norm_threshold = 1.0 
@@ -37,9 +38,19 @@ plotter = VisdomLinePlotter()
 
 #optimizer and loss function
 optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=lr)
+
 loss_function = nn.KLDivLoss(reduction='batchmean')
 
-_LOGGER.info("Starting training")
+if resume:
+    _LOGGER.info("Resuming training!")
+    checkpoint = torch.load("{}/checkpoint_latest.pth".format(base_dir))
+    qt.load_state_dict(checkpoint['state_dict'])
+    optimizer.load_state_dict(checkpoint['optimizer'])
+    start_epoch = checkpoint['epoch']
+
+else:
+    _LOGGER.info("Starting training")
+    start_epoch = 0
 
 #TODO: finish this metric later
 def eval_batch_accuracy(scores, target):
@@ -56,7 +67,8 @@ def show_test_data_similarity(qt):
     # print(torch.exp(qt(test_sentences)))
     pass
 
-for j in range(num_epochs):
+
+for j in range(start_epoch, num_epochs):
 
     running_losses = []
 
@@ -81,7 +93,7 @@ for j in range(num_epochs):
             optimizer.step()
 
             if i % 10 == 0:
-                _LOGGER.info("epoch: {} batch: {} loss: {:.5f}".format(j, i, loss))
+                _LOGGER.info("epoch: {} batch: {:10d} loss: {:.5f}".format(j, i, loss))
                 running_losses.append(loss.item())
                 if len(running_losses) >  10:
                     running_losses.pop(0)
@@ -91,9 +103,14 @@ for j in range(num_epochs):
 
             if i % 1000 == 0: 
                 show_test_data_similarity(qt)
-                savepath = "{}/model-{}.pth".format(checkpoint_dir, i)
+                checkpoint_dict = {
+                    'epoch': j+1;
+                    'state_dict': qt.state_dict()
+                    'optimizer': optimizer.state_dict()
+                }
+                savepath = "{}/checkpoint_latest.pth".format(checkpoint_dir, i)
                 _LOGGER.info("Saving file at location : {}".format(savepath))
-                torch.save(qt.state_dict(), savepath)
+                torch.save(checkpoint_dict, savepath)
             
         except Exception as e:
 
