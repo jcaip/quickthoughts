@@ -50,25 +50,29 @@ optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=lr
 loss_function = nn.KLDivLoss(reduction='batchmean')
 
 if resume:
-    _LOGGER.info("Resuming training!")
     checkpoint = torch.load("{}/checkpoint_latest.pth".format(base_dir))
     qt.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
-    start_epoch = checkpoint['epoch']
+    last_train_idx  = checkpoint['batch']
+    _LOGGER.info("Resuming training from index: {}".format(last_train_idx))
 
 else:
     _LOGGER.info("Starting training")
-    start_epoch = 0
+    last_train_idx = -1
 
 #TODO: finish this metric later
 def eval_batch_accuracy(scores, target):
     scores.max(1)
 
-i = 0
 failed_batches = 0
 running_losses = []
 
 for i, data in enumerate(train_iter):
+
+    #resume
+    if i < last_train_idx:
+        continue
+
     if not data:
         failed_batches +=1
         continue
