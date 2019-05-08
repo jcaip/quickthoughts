@@ -4,6 +4,5 @@ checkpoints/*
 src/__pycache__/*
 src/data/__pycache__/*
 *.txt
-all.bak
-cleaned.txt
+*.bak
 .vscode/*
