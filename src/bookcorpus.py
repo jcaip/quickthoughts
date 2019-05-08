@@ -1,8 +1,8 @@
 from torch.utils.data.dataset import Dataset
 from util import _WV_MODEL, base_dir, _LOGGER
 import multiprocessing
-import json
 import torch
+import time
 
 def prepare_sequence(text, vocab=_WV_MODEL.vocab, max_len=50):
     pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
@@ -23,7 +23,7 @@ def preprocess(file_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
 
             if i % 1e6 == 0:
                 percentage = 100*(i / 1e6) / 68.0
-                _LOGGER.info("processed: {:.2f}% wrote: {} ".format(percentage, j))
+                _LOGGER.info("processed: {:2.2f}% wrote: {:10d} lines".format(percentage, j))
     pool.close()
 
 class BookCorpus(Dataset):
@@ -41,5 +41,8 @@ class BookCorpus(Dataset):
         return len(self.examples)
 
 if __name__ == '__main__':
-    _LOGGER.info("Starting processing")
+    _LOGGER.info("Starting processing ...")
+    start = time.time()
     preprocess("{}/all.txt".format(base_dir), "{}/cleaned.txt".format(base_dir))
+    end = time.time()
+    _LOGGER.info("Took {} time to preprocess file".format(end-start))

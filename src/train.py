@@ -89,6 +89,7 @@ for j in range(start_epoch, num_epochs):
 
             loss = loss_function(scores, targets)
             loss.backward()
+            #grad clipping
             nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
             optimizer.step()
 
@@ -108,12 +109,11 @@ for j in range(start_epoch, num_epochs):
                     'state_dict': qt.state_dict(),
                     'optimizer': optimizer.state_dict(),
                 }
-                savepath = "{}/checkpoint_latest.pth".format(checkpoint_dir, i)
+                savepath = "{}/checkpoint_latest.pth".format(checkpoint_dir)
                 _LOGGER.info("Saving file at location : {}".format(savepath))
                 torch.save(checkpoint_dict, savepath)
             
         except Exception as e:
-
             _LOGGER.exception(e)
             print("---------\n\n")
 
