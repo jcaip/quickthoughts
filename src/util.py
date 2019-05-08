@@ -13,6 +13,10 @@ logging.basicConfig(
 
 _LOGGER = logging.getLogger(__name__)
 
+fh = logging.FileHandler('train.log')
+fh.setLevel(logging.DEBUG)
+_LOGGER.addHandler(fh)
+
 base_dir = os.getenv('DIR', '/home/jcjessecai/quickthoughts')
 vec_path = '{}/GoogleNews-vectors-negative300.bin'.format(base_dir)
 _WV_MODEL = KeyedVectors.load_word2vec_format(vec_path, binary=True, limit=10000)
