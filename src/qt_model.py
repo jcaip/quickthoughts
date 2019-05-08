@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
-from quickthoughts.util import log_param_info
+from utils import log_param_info
 
 class UniGRUEncoder(nn.Module):
 
@@ -9,7 +9,7 @@ class UniGRUEncoder(nn.Module):
         super(UniGRUEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
         self.hidden_size = hidden_size
-        self.embeddings = nn.Embedding(wv_model.vectors.shape)
+        self.embeddings = nn.Embedding(*wv_model.vectors.shape)
         self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors), requires_grad=False)
         self.gru = nn.GRU(wv_model.vectors.shape[1], hidden_size)
 
@@ -35,6 +35,14 @@ class QuickThoughts(nn.Module):
         self.enc_target  = UniGRUEncoder(wv_model)
         self.enc_context = UniGRUEncoder(wv_model)
         self.log_softmax = nn.LogSoftmax(dim=1)
+
+    # generate targets softmax
+    def generate_targets(self, num_samples):
+        targets = torch.zeros(num_samples, num_samples, device=self.device)
+        for offset in [-1, 1]:
+            targets += torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
+        targets /= targets.sum(1, keepdim=True)
+        return targets
         log_param_info(self)
 
     def forward(self, inputs):
@@ -44,12 +52,5 @@ class QuickThoughts(nn.Module):
         # need to zero out when it's the same sentence
         mask = torch.eye(len(scores), device=self.device).byte()
         scores.masked_fill_(mask, 0)    
-        return self.log_softmax(scores)
+        return (self.log_softmax(scores), self.generate_targets(len(inputs)))
 
-    # generate targets softmax
-    def generate_targets(self, num_samples):
-        targets = torch.zeros(num_samples, num_samples, device=self.device)
-        for offset in [-1, 1]:
-            targets += torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
-        targets /= targets.sum(1, keepdim=True)
-        return targets

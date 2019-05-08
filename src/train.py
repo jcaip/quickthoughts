@@ -5,24 +5,28 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.nn.utils.rnn import pack_sequence
 from torch.utils.data.dataloader import DataLoader
-from quickthoughts.data.bookcorpus import BookCorpus
-from quickthoughts.qt_model import QuickThoughts
-from quickthoughts.util import VisdomPlotter, checkpoint_training, restore_training, safe_pack_sequence
+from gensim.models import KeyedVectors
+from data.bookcorpus import BookCorpus
+from qt_model import QuickThoughts
+from utils import VisdomLinePlotter, checkpoint_training, restore_training, safe_pack_sequence
 from config import CONFIG
 
-if __name__ == '__main__':
-    _LOGGER = logging.getLogger(__name__)
-    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=10000)
+_LOGGER = logging.getLogger(__name__)
 
-    bookcorpus = BookCorpus(CONFIG['data_path'])
+if __name__ == '__main__':
+
+    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=10000)
+    bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL)
     train_iter = DataLoader(bookcorpus,
                             batch_size=CONFIG['batch_size'],
                             num_workers=10,
                             collate_fn=safe_pack_sequence)
+
     qt = QuickThoughts(WV_MODEL).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
     loss_function = nn.KLDivLoss(reduction='batchmean')
     last_train_idx = restore_training(CONFIG['checkpoint_dir']) if CONFIG['resume'] else -1
+
     plotter = VisdomLinePlotter()
     failed_or_skipped_batches, running_losses, start = 0, [], time.time()
 
@@ -31,15 +35,16 @@ if __name__ == '__main__':
         if i < last_train_idx or not data:
             failed_or_skipped_batches += 1
             continue
+
         qt.zero_grad()
         data = data.cuda()
-        log_scores = qt(data)
-        targets = qt.generate_targets(min(CONFIG['batch_size'], len(data)))
+        log_scores, targets = qt(data)
         loss = loss_function(log_scores, targets)
         loss.backward()
         #grad clipping
         nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
         optimizer.step()
+
         if i % 10 == 0:
             _LOGGER.info("batch: {:10d} | loss: {:.5f} | failed/skipped: {:4d}".format(i, loss, failed_or_skipped_batches))
             running_losses.append(loss.item())

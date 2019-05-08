@@ -1,7 +1,7 @@
 *.bin
 src/data/.vector_cache/*
 checkpoints/*
-quickthoughts/__pycache__/*
+src/__pycache__/*
 src/data/__pycache__/*
 *.txt
 *.bak

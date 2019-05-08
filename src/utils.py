@@ -30,7 +30,7 @@ def checkpoint_training(checkpoint_dir, idx, model, optim, filename="checkpoint_
     }
     savepath = "{}/{}.pth".format(checkpoint_dir, filename)
     _LOGGER.info("Saving file at location : {}".format(savepath))
-   torch.save(checkpoint_dict, savepath)
+    torch.save(checkpoint_dict, savepath)
 
 def restore_training(checkpoint_dir, model, optimizer, filename="checkpoint_latest"):
     checkpoint = torch.load("{}/{}.pth".format(checkpoint_dir, filename))
