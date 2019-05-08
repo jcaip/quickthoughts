@@ -68,54 +68,72 @@ def show_test_data_similarity(qt):
     pass
 
 
-for j in range(start_epoch, num_epochs):
+i = 0
+failed_batches = 0
+while True:
+    try:
+        data = next(data_iter)
 
-    running_losses = []
+    except StopIteration:
+        _LOGGER.info("Finished 1 pass through epoch")
+        show_test_data_similarity(qt)
+        checkpoint_dict = {
+            'batch': i,
+            'state_dict': qt.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }
+        savepath = "{}/FINAL_MODEL.pth".format(checkpoint_dir)
+        _LOGGER.info("Saving file at location : {}".format(savepath))
+        torch.save(checkpoint_dict, savepath)
+        break
 
-    for i, data in enumerate(train_iter):
-        try:
-            qt.zero_grad()
+    # deal with wrong bumps
+    except Exception as e:
+        _LOGGER.info(e)
+        failed_batches +=1
+        
+    qt.zero_grad()
 
-            data = data.cuda()
-            #this gives the log softmax of the scores
-            scores = qt(data)
+    data = data.cuda()
+    #this gives the log softmax of the scores
+    scores = qt(data)
 
-            # generate targets softmax
-            targets = torch.zeros(batch_size, batch_size)
-            for offset in [-1, 1]:
-                targets += torch.diag(torch.ones(batch_size-abs(offset)), diagonal=offset)
-            targets /= targets.sum(1, keepdim=True)
-            targets = targets.cuda()
+    # generate targets softmax
+    targets = torch.zeros(batch_size, batch_size)
+    for offset in [-1, 1]:
+        targets += torch.diag(torch.ones(batch_size-abs(offset)), diagonal=offset)
+    targets /= targets.sum(1, keepdim=True)
+    targets = targets.cuda()
 
-            loss = loss_function(scores, targets)
-            loss.backward()
-            #grad clipping
-            nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
-            optimizer.step()
+    loss = loss_function(scores, targets)
+    loss.backward()
+    #grad clipping
+    nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), norm_threshold)
+    optimizer.step()
 
-            if i % 10 == 0:
-                _LOGGER.info("epoch: {} batch: {:10d} loss: {:.5f}".format(j, i, loss))
-                running_losses.append(loss.item())
-                if len(running_losses) >  10:
-                    running_losses.pop(0)
+    if i % 10 == 0:
+        _LOGGER.info("batch: {:10d} loss: {:.5f}    | failed batches: {:4d}".format(i, loss, failed_batches))
+        running_losses.append(loss.item())
+        if len(running_losses) >  10:
+            running_losses.pop(0)
 
-            if i % 100 == 0:
-                plotter.plot('loss', 'train', 'Loss', i, sum(running_losses) / len(running_losses))
+    if i % 100 == 0:
+        plotter.plot('loss', 'train', 'Loss', i, sum(running_losses) / len(running_losses))
 
-            if i % 1000 == 0: 
-                show_test_data_similarity(qt)
-                checkpoint_dict = {
-                    'epoch': j+1,
-                    'state_dict': qt.state_dict(),
-                    'optimizer': optimizer.state_dict(),
-                }
-                savepath = "{}/checkpoint_latest.pth".format(checkpoint_dir)
-                _LOGGER.info("Saving file at location : {}".format(savepath))
-                torch.save(checkpoint_dict, savepath)
-            
-        except Exception as e:
-            _LOGGER.exception(e)
-            print("---------\n\n")
+    if i % 1000 == 0: 
+        show_test_data_similarity(qt)
+        checkpoint_dict = {
+            'batch': i,
+            'state_dict': qt.state_dict(),
+            'optimizer': optimizer.state_dict(),
+        }
+        savepath = "{}/checkpoint_latest.pth".format(checkpoint_dir)
+        _LOGGER.info("Saving file at location : {}".format(savepath))
+        torch.save(checkpoint_dict, savepath)
+        
+    except Exception as e:
+        _LOGGER.exception(e)
+        print("---------\n\n")
 
 
 
