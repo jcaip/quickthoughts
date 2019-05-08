@@ -1,7 +1,7 @@
 import logging
 import torch
 from torch.utils.data.dataset import Dataset
-from quickthoughts.data.utils import prepare_sequence
+from data.utils import prepare_sequence
 
 
 _LOGGER = logging.getLogger(__name__)

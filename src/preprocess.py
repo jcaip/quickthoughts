@@ -1,3 +1,8 @@
+import logging
+from data.utils import prepress
+
+_LOGGER = logging.getLogger(__name__)
+
 if __name__ == '__main__':
     _LOGGER.info("Starting data preprocessing")
     start = time.time()
