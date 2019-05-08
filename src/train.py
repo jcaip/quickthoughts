@@ -5,6 +5,7 @@ from torch.nn.utils.rnn import pad_sequence, pack_sequence
 from bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from pprint import pprint
+import sys
 from util import VisdomLinePlotter
 from torch.utils.data.dataloader import DataLoader
 from util import _LOGGER, base_dir
@@ -16,14 +17,21 @@ norm_threshold = 1.0
 num_epochs = 5
 lr = 5e-4
 
-data_path = "{}/old_cleaned.txt".format(base_dir)
+data_path = "{}/cleaned.txt".format(base_dir)
 checkpoint_dir = '{}/checkpoints'.format(base_dir)
+
+def safe_pack_sequence(x):
+    try:
+        return pack_sequence(x, enforce_sorted=False)
+    except Exception as e:
+        _LOGGER.exception(e)
+
 
 bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
                         batch_size=batch_size,
                         num_workers=10,
-                        collate_fn=lambda x: pack_sequence(x, enforce_sorted=False))
+                        collate_fn=safe_pack_sequence)
 
 #define our model
 qt = QuickThoughts().cuda()
@@ -31,7 +39,7 @@ qt = QuickThoughts().cuda()
 # some debugging info
 for name, param in qt.named_parameters():
     if param.requires_grad:
-        _LOGGER.info("name: {} size: {}".format(name, param.data.shape))
+        _LOGGER.debug("name: {} size: {}".format(name, param.data.shape))
 
 #initializing
 plotter = VisdomLinePlotter()
@@ -56,44 +64,16 @@ else:
 def eval_batch_accuracy(scores, target):
     scores.max(1)
 
-def show_test_data_similarity(qt):
-    # test_sentences =  [ "What is going on?",
-                        # "Let's go eat.",
-                        # "The engine won't start.",
-                        # "I'm hungry now."]
-
-    # pprint(test_sentences)
-    # test_sentences = pack_sequence(list(map(prepare_sequence, test_sentences)), enforce_sorted=False).cuda()
-    # print(torch.exp(qt(test_sentences)))
-    pass
-
-
 i = 0
 failed_batches = 0
-while True:
-    try:
-        data = next(data_iter)
+running_losses = []
 
-    except StopIteration:
-        _LOGGER.info("Finished 1 pass through epoch")
-        show_test_data_similarity(qt)
-        checkpoint_dict = {
-            'batch': i,
-            'state_dict': qt.state_dict(),
-            'optimizer': optimizer.state_dict(),
-        }
-        savepath = "{}/FINAL_MODEL.pth".format(checkpoint_dir)
-        _LOGGER.info("Saving file at location : {}".format(savepath))
-        torch.save(checkpoint_dict, savepath)
-        break
-
-    # deal with wrong bumps
-    except Exception as e:
-        _LOGGER.info(e)
+for i, data in enumerate(train_iter):
+    if not data:
         failed_batches +=1
-        
-    qt.zero_grad()
+        continue
 
+    qt.zero_grad()
     data = data.cuda()
     #this gives the log softmax of the scores
     scores = qt(data)
@@ -112,7 +92,7 @@ while True:
     optimizer.step()
 
     if i % 10 == 0:
-        _LOGGER.info("batch: {:10d} loss: {:.5f}    | failed batches: {:4d}".format(i, loss, failed_batches))
+        _LOGGER.info("batch: {:10d}   |            loss: {:.5f}  |  failed: {:4d}".format(i, loss, failed_batches))
         running_losses.append(loss.item())
         if len(running_losses) >  10:
             running_losses.pop(0)
@@ -121,7 +101,6 @@ while True:
         plotter.plot('loss', 'train', 'Loss', i, sum(running_losses) / len(running_losses))
 
     if i % 1000 == 0: 
-        show_test_data_similarity(qt)
         checkpoint_dict = {
             'batch': i,
             'state_dict': qt.state_dict(),
@@ -130,10 +109,10 @@ while True:
         savepath = "{}/checkpoint_latest.pth".format(checkpoint_dir)
         _LOGGER.info("Saving file at location : {}".format(savepath))
         torch.save(checkpoint_dict, savepath)
-        
-    except Exception as e:
-        _LOGGER.exception(e)
-        print("---------\n\n")
 
-
+            
+savepath = "{}/FINAL_MODEL.pth".format(checkpoint_dir)
+_LOGGER.info("Saving file at location : {}".format(savepath))
+torch.save(qt.state_dict(), savepath)
+_LOGGER.info("Finished Training!!!")
 
