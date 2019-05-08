@@ -9,7 +9,7 @@ from torch.utils.data.dataloader import DataLoader
 from util import _LOGGER, base_dir
 from util import VisdomLinePlotter
 
-resume = False
+resume = True
 context_size = 1
 batch_size = 400
 norm_threshold = 1.0 
@@ -37,7 +37,7 @@ def get_param_info(model):
 bookcorpus = BookCorpus(data_path)
 train_iter = DataLoader(bookcorpus,
                         batch_size=batch_size,
-                        num_workers=10,
+                        num_workers=0,
                         collate_fn=safe_pack_sequence)
 
 #define our model, optimizer, and loss function
@@ -47,7 +47,7 @@ loss_function = nn.KLDivLoss(reduction='batchmean')
 get_param_info(qt)
 
 if resume:
-    checkpoint = torch.load("{}/checkpoint_latest.pth".format(base_dir))
+    checkpoint = torch.load("{}/checkpoint_latest.pth".format(checkpoint_dir))
     qt.load_state_dict(checkpoint['state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer'])
     last_train_idx  = checkpoint['batch']
@@ -101,7 +101,7 @@ for i, data in enumerate(train_iter):
     if i % 100 == 0:
         plotter.plot('loss', 'train', 'Loss', i, sum(running_losses) / len(running_losses))
 
-    if i % 1000 == 0: 
+    if i % 10000 == 0: 
         checkpoint_dict = {
             'batch': i,
             'state_dict': qt.state_dict(),
