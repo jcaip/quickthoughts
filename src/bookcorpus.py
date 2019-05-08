@@ -2,6 +2,7 @@ import logging
 import multiprocessing
 import time
 import torch
+from operator import itemgetter
 from torch.utils.data.dataset import Dataset
 from util import _WV_MODEL, base_dir 
 
@@ -22,9 +23,8 @@ def preprocess(read_path, write_path, vocab=_WV_MODEL.vocab, max_len=50):
     pool = multiprocessing.Pool(8)
     with open(read_path) as read_file, open(write_path, "w+") as write_file:
         # should all be iterators so fast
-        write_file.write_lines(map(lambda (s, t): t,
-                                   filter(lambda (s, t): s,
-                                          pool.imap(prepare_sequence, read_file))
+        write_file.write_lines(line for _, line in filter(itemgetter(0),
+                                                          pool.imap(prepare_sequence, read_file))
     pool.close()
 
 class BookCorpus(Dataset):
