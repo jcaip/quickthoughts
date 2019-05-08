@@ -104,9 +104,9 @@ for j in range(start_epoch, num_epochs):
             if i % 1000 == 0: 
                 show_test_data_similarity(qt)
                 checkpoint_dict = {
-                    'epoch': j+1;
-                    'state_dict': qt.state_dict()
-                    'optimizer': optimizer.state_dict()
+                    'epoch': j+1,
+                    'state_dict': qt.state_dict(),
+                    'optimizer': optimizer.state_dict(),
                 }
                 savepath = "{}/checkpoint_latest.pth".format(checkpoint_dir, i)
                 _LOGGER.info("Saving file at location : {}".format(savepath))
