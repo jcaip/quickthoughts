@@ -9,11 +9,11 @@ from torch.utils.data.dataloader import DataLoader
 from util import _LOGGER, base_dir
 from util import VisdomLinePlotter
 
-resume = True
+resume = False
 context_size = 1
 batch_size = 400
-norm_threshold = 1.0 
-num_epochs = 5
+norm_threshold = 5.0 
+num_epochs = 1
 lr = 5e-4
 data_path = "{}/cleaned.txt".format(base_dir)
 checkpoint_dir = '{}/checkpoints'.format(base_dir)
