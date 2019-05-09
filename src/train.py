@@ -42,7 +42,7 @@ if __name__ == '__main__':
     qt = QuickThoughts(WV_MODEL).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
     kl_loss = nn.KLDivLoss(reduction='batchmean')
-    last_train_idx = restore_training(CONFIG['checkpoint_dir']) if CONFIG['resume'] else -1
+    last_train_idx = restore_training(CONFIG['checkpoint_dir'], qt, optimizer) if CONFIG['resume'] else -1
 
     #start training
     failed_or_skipped_batches = 0

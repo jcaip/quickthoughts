@@ -34,6 +34,7 @@ def checkpoint_training(checkpoint_dir, idx, model, optim, filename="checkpoint_
 
 def restore_training(checkpoint_dir, model, optimizer, filename="checkpoint_latest"):
     checkpoint = torch.load("{}/{}.pth".format(checkpoint_dir, filename))
+    print(checkpoint)
     model.load_state_dict(checkpoint['state_dict'])
     if optimizer:
         optimizer.load_state_dict(checkpoint['optimizer'])
