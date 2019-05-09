@@ -10,18 +10,25 @@ from data.bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from utils import checkpoint_training, restore_training, safe_pack_sequence
 from config import CONFIG
-from pprint import pprint
+from pprint import pformat
 import os
+import json
 
 _LOGGER = logging.getLogger(__name__)
 
 if __name__ == '__main__':
-    os.mkdir(CONFIG['checkpoint_dir'])
 
-    pprint(CONFIG)
+    #setting up training
+    os.mkdir(CONFIG['checkpoint_dir'])
+    config_filepath = "{}/{}".format(CONFIG['checkpoint_dir'], 'config.json')
+    with open(config_filepath, 'w') as fp:
+        _LOGGER.info(pformat(CONFIG))
+        json.dump(CONFIG, fp)
+        _LOGGER.info("Wrote config to file: {}".format(config_filepath))
+
 
     # init wordvec model
-    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=10000)
+    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
 
     # create dataset
     bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL.vocab)
