@@ -6,16 +6,9 @@ import torch.optim as optim
 from gensim.models import KeyedVectors
 from torch.nn.utils.rnn import pack_sequence
 from torch.utils.data.dataloader import DataLoader
-<<<<<<< HEAD
-from gensim.models import KeyedVectors
-from data.bookcorpus import BookCorpus
-from qt_model import QuickThoughts
-from utils import VisdomLinePlotter, checkpoint_training, restore_training, safe_pack_sequence
-=======
 from data.bookcorpus import BookCorpus
 from qt_model import QuickThoughts
 from utils import checkpoint_training, restore_training, safe_pack_sequence
->>>>>>> c41f3b4fdc7b8656ec4e55419977162fe55762e9
 from config import CONFIG
 from pprint import pformat
 import os
@@ -23,14 +16,11 @@ import json
 
 _LOGGER = logging.getLogger(__name__)
 
-_LOGGER = logging.getLogger(__name__)
 
 if __name__ == '__main__':
 
-<<<<<<< HEAD
     WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=10000)
     bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL)
-=======
     #setting up training
     os.mkdir(CONFIG['checkpoint_dir'])
     config_filepath = "{}/{}".format(CONFIG['checkpoint_dir'], 'config.json')
@@ -45,22 +35,11 @@ if __name__ == '__main__':
 
     # create dataset
     bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL.vocab)
->>>>>>> c41f3b4fdc7b8656ec4e55419977162fe55762e9
     train_iter = DataLoader(bookcorpus,
                             batch_size=CONFIG['batch_size'],
                             num_workers=1,
                             drop_last=True,
                             collate_fn=safe_pack_sequence)
-
-<<<<<<< HEAD
-    qt = QuickThoughts(WV_MODEL).cuda()
-    optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
-    loss_function = nn.KLDivLoss(reduction='batchmean')
-    last_train_idx = restore_training(CONFIG['checkpoint_dir']) if CONFIG['resume'] else -1
-
-    plotter = VisdomLinePlotter()
-    failed_or_skipped_batches, running_losses, start = 0, [], time.time()
-=======
     # model and loss function
     qt = QuickThoughts(WV_MODEL).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
@@ -71,7 +50,6 @@ if __name__ == '__main__':
     failed_or_skipped_batches = 0
     start = time.time()
     qt.train()
->>>>>>> c41f3b4fdc7b8656ec4e55419977162fe55762e9
 
     for i, data in enumerate(train_iter):
         # this handles resuming / when we have a bad sample (0 -len sequence)
@@ -79,12 +57,6 @@ if __name__ == '__main__':
             failed_or_skipped_batches += 1
             continue
 
-<<<<<<< HEAD
-        qt.zero_grad()
-        data = data.cuda()
-        log_scores, targets = qt(data)
-        loss = loss_function(log_scores, targets)
-=======
         optimizer.zero_grad()
         data = data.cuda()
 
@@ -93,7 +65,6 @@ if __name__ == '__main__':
 
         #compute loss
         loss = kl_loss(log_scores, targets)
->>>>>>> c41f3b4fdc7b8656ec4e55419977162fe55762e9
         loss.backward()
         #grad clipping
         nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
