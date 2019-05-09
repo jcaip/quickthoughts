@@ -46,22 +46,23 @@ def load_data(encoder, vocab, name, loc='./data/', seed=1234):
 
     labels = compute_labels(pos, neg)
     text, labels = shuffle_data(pos+neg, labels, seed=seed)
-    print(len(text))
+
+    num = 1000
+    text = text[:num]
+    labels = labels[:num]
+    features = []
+    data = []
+    for i, line in enumerate(text):
+        if i % 100 == 0:
+            print("{:5d}/{:5d}: {}".format(i, len(text), line))
+        seq, _ = prepare_sequence(line, vocab)
+        data.append(torch.LongTensor(seq))
+    
+    packed = safe_pack_sequence(data)
+    res = encoder(packed)
+    features = res.detach().numpy()
     z['text'] = text
     z['labels'] = labels
-
-    data = map(lambda x: prepare_sequence(x, vocab)[0], text)
-    features = []
-
-    for i, d in enumerate(data):
-        if i% 1000  == 0:
-            print("Processed: {:5d}/{:5d}".format(i, len(text)))
-        if d:
-            res = encoder(safe_pack_sequence([torch.LongTensor(d)]))
-        else:
-            print("WRONG SEQUENCE")
-            res = torch.zeros(2000)
-        features.append(res)
 
     print('Computing vectors...')
     return z, features
@@ -81,10 +82,9 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
 
     scan = [2**t for t in range(0,9,1)]
     npts = len(z['text'])
-    kf = KFold(npts, n_folds=k, random_state=seed)
+    kf = KFold(n_splits=k, random_state=seed)
     scores = []
-    for train, test in kf:
-
+    for train, test in kf.split(z['labels']):
         # Split data
         X_train = features[train]
         y_train = z['labels'][train]
@@ -98,9 +98,9 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
         for s in scan:
 
             # Inner KFold
-            innerkf = KFold(len(X_train), n_folds=k, random_state=seed+1)
+            innerkf = KFold(n_splits=k, random_state=seed+1)
             innerscores = []
-            for innertrain, innertest in innerkf:
+            for innertrain, innertest in innerkf.split(X_train):
         
                 # Split data
                 X_innertrain = X_train[innertrain]
@@ -112,29 +112,29 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
                 Xraw_innertest = [Xraw[i] for i in innertest]
 
                 # Train classifier
-                clf = LogisticRegression(C=s)
+                clf = LogisticRegression(solver='liblinear', C=s)
                 clf.fit(X_innertrain, y_innertrain)
                 acc = clf.score(X_innertest, y_innertest)
                 innerscores.append(acc)
-                print (s, acc)
+                print("C: {:3d} Acc:{:.3f}".format(s, acc))
 
             # Append mean score
             scanscores.append(np.mean(innerscores))
 
         # Get the index of the best score
+        best_score = np.max(scanscores)
         s_ind = np.argmax(scanscores)
         s = scan[s_ind]
-        print (scanscores)
-        print (s)
+        print("Found Best --  C:{:3d} Acc:{:.3f}".format(s, best_score))
  
         # Train classifier
-        clf = LogisticRegression(C=s)
+        clf = LogisticRegression(solver='liblinear', C=s)
         clf.fit(X_train, y_train)
 
         # Evaluate
         acc = clf.score(X_test, y_test)
         scores.append(acc)
-        print (scores)
 
+    print(scores)
     return scores
 

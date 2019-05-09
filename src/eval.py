@@ -25,7 +25,7 @@ if __name__ == '__main__':
     start = time.time()
     # model and loss function
     qt = QuickThoughts(WV_MODEL, cuda=False)
-    trained_params = torch.load("{}/FINAL_MODEL.pth".format(CONFIG['base_dir']))
+    trained_params = torch.load("{}/data/FINAL_MODEL.pth".format(CONFIG['base_dir']))
     qt.load_state_dict(trained_params)
     _LOGGER.info("Restored successfully")
     qt.eval()
