@@ -18,16 +18,14 @@ import os
 import json
 import numpy as np
 import sys
-
 from scipy.sparse import hstack
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
-
 from data.utils import prepare_sequence
 from numpy.random import RandomState
 
 
-pool = Pool(10)
+pool = Pool(6)
 
 def shuffle_data(X, L, seed=1234):
     """
@@ -129,7 +127,7 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
                 Xraw_innertest = [Xraw[i] for i in innertest]
 
                 # Train classifier
-                clf = LogisticRegression(solver='liblinear', C=s)
+                clf = LogisticRegression(solver='lbfgs', C=s)
                 clf.fit(X_innertrain, y_innertrain)
                 acc = clf.score(X_innertest, y_innertest)
                 innerscores.append(acc)
@@ -147,7 +145,7 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
         print("Found Best --- C:{:3d} Acc:{:.3f}".format(s, best_score))
  
         # Train classifier
-        clf = LogisticRegression(solver='liblinear', C=s)
+        clf = LogisticRegression(solver='lbfgs', C=s)
         clf.fit(X_train, y_train)
 
         # Evaluate
