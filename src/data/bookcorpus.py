@@ -13,7 +13,7 @@ class BookCorpus(Dataset):
         with open(file_path, encoding='ISO-8859-1') as f:
             self.examples = list(f)
         _LOGGER.info("Successfully read {} lines".format(len(self.examples)))
-        self.vocab = wv_model.vocab
+        self.vocab = vocab
 
     def __getitem__(self, i):
         return torch.LongTensor(prepare_sequence(self.examples[i], self.vocab)[0])

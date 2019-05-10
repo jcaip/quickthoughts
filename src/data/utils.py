@@ -1,4 +1,3 @@
-import multiprocessing
 from operator import itemgetter
 
 def prepare_sequence(text, vocab, max_len=50):
@@ -8,10 +7,8 @@ def prepare_sequence(text, vocab, max_len=50):
 
 #this function should process all.txt and removes all lines that are empty assuming the vocab
 def preprocess(read_path, write_path, vocab, max_len=50):
-    pool = multiprocessing.Pool(8)
     with open(read_path) as read_file, open(write_path, "w+") as write_file:
         # should all be iterators so fast
         write_file.writelines(line for _ , line in filter(itemgetter(0),
-                                                          pool.imap(lambda x: prepare_sequence(x, vocab, max_len=max_len),
-                                                                    read_file)))
-    pool.close()
+                                                          map(lambda x: prepare_sequence(x, vocab, max_len=max_len),
+                                                              read_file)))

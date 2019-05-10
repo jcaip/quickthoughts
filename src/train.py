@@ -8,9 +8,9 @@ from torch.nn.utils.rnn import pack_sequence
 from torch.utils.data.dataloader import DataLoader
 from data.bookcorpus import BookCorpus
 from qt_model import QuickThoughts
-from utils import checkpoint_training, restore_training, safe_pack_sequence
+from utils import checkpoint_training, restore_training, safe_pack_sequence, VisdomLinePlotter
 from config import CONFIG
-from pprint import pformat
+from pprint import pformat, pprint
 import os
 import json
 
@@ -19,7 +19,11 @@ _LOGGER = logging.getLogger(__name__)
 
 if __name__ == '__main__':
 
-    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=10000)
+    plotter = VisdomLinePlotter()
+
+    pprint(CONFIG)
+
+    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
     bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL)
     #setting up training
     os.mkdir(CONFIG['checkpoint_dir'])
@@ -73,8 +77,15 @@ if __name__ == '__main__':
         if i % 10 == 0:
             _LOGGER.info("batch: {:6d} | loss: {:.4f} | failed/skipped: {:3d}".format(i, loss, failed_or_skipped_batches))
 
+        if i % 100 == 0:
+            plotter.plot('loss', 'train', 'Loss', i, loss.item())
+
+
         if i % 10000 == 0: 
             checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)
+
+        if i % 100000 == 0: 
+            checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer, filename=str(i))
 
     checkpoint_training(CONFIG['checkpoint_dir'], -1, qt, optimizer, filename="FINAL_MODEL")
     end = time.time()
