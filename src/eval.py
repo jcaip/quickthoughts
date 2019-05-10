@@ -65,7 +65,7 @@ def load_data(encoder, vocab, name, loc='./data/', seed=1234):
     feature_list = []
     for j in range(0, size, test_batch_size):
         stop_idx = min(len(text), j+1000)
-        print("Processing data from {} to {}".format(j, stop_idx))
+        _LOGGER.info("Processing data from {} to {}".format(j, stop_idx))
         batch_text  = text[j:stop_idx]
         batch_labels = labels[j:stop_idx]
         data = [torch.LongTensor(seq) for seq, _ in map(lambda x: prepare_sequence(x, vocab), batch_text)]
@@ -76,11 +76,10 @@ def load_data(encoder, vocab, name, loc='./data/', seed=1234):
         feature_list.append(res)
 
     features = np.concatenate(feature_list)
-    print(features.shape)
+    _LOGGER.info("featurs of shape: {}".format(features.shape))
     z['text'] = text
     z['labels'] = labels
 
-    print('Computing vectors...')
     return z, features
 
 
@@ -95,7 +94,7 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
     # Load the dataset and extract features
     z, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
 
-    print("evaluating")
+    _LOGGER.info("Fitting logistic layers")
 
     scan = [2**t for t in range(0,9,1)]
     npts = len(z['text'])
@@ -138,11 +137,9 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
 
         start = time.time()
         scanscores = pool.map(fit_inner_kfold, scan)
-        print("Finished C search in {:.2f} seconds".format(time.time()-start))
 
         # Get the index of the best score
         s, best_score = max(scanscores, key=operator.itemgetter(1))
-        print("Found Best --- C:{:3d} Acc:{:.3f}".format(s, best_score))
  
         # Train classifier
         clf = LogisticRegression(solver='lbfgs', C=s)
@@ -150,11 +147,10 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
 
         # Evaluate
         acc = clf.score(X_test, y_test)
-        print("test acc: {:.3f}".format(acc))
         scores.append(acc)
 
-    print(scores)
-    print(np.mean(scores))
+        _LOGGER.info("Found best C={:3d} with accuracy: {:.2%} in {:.2f} seconds | Test Accuracy: {:.2%}".format(s, best_score, time.time()-start, acc))
+
     return scores
 
 
@@ -162,22 +158,20 @@ _LOGGER = logging.getLogger(__name__)
 
 if __name__ == '__main__':
 
-    # init wordvec model
+    start = time.time()
+
     WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
 
-    start = time.time()
-    # model and loss function
     qt = QuickThoughts(WV_MODEL).cuda()
     trained_params = torch.load("{}/data/FINAL_MODEL.pth".format(CONFIG['base_dir']))
     qt.load_state_dict(trained_params)
-    _LOGGER.info("Restored successfully")
     qt.eval()
-    qt.training = False
 
-    eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
+    _LOGGER.info("Restored successfully")
 
+    scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
 
     end = time.time()
-    _LOGGER.info("Finished Eval | | Total Time: {}".format(end-start))
+    _LOGGER.info("Finished Evaluation of {} | Accuracy: {} | Total Time: {}".format('MR', np.mean(scores), end-start))
 
 
