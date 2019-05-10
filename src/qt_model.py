@@ -52,7 +52,7 @@ class QuickThoughts(nn.Module):
         
         #testing
         if not self.training:
-            return torch.cat((encoding_f, encoding_g))
+            return torch.cat((encoding_f, encoding_g), dim=1)
 
         #training
         scores = torch.matmul(encoding_f, encoding_g.t())

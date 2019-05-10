@@ -62,21 +62,23 @@ def load_data(encoder, vocab, name, loc='./data/', seed=1234):
 
     labels = compute_labels(pos, neg)
     text, labels = shuffle_data(pos+neg, labels, seed=seed)
+    test_batch_size = 1000
+    size = len(text)
+    feature_list = []
+    for j in range(0, size, test_batch_size):
+        stop_idx = min(len(text), j+1000)
+        print("Processing data from {} to {}".format(j, stop_idx))
+        batch_text  = text[j:stop_idx]
+        batch_labels = labels[j:stop_idx]
+        data = [torch.LongTensor(seq) for seq, _ in map(lambda x: prepare_sequence(x, vocab), batch_text)]
+            # if i % 100 == 0:
+                # print("{:5d}/{:5d}: {}".format(i, len(batch_text), line))
+        packed = safe_pack_sequence(data).cuda()
+        res = encoder(packed).cpu().detach().numpy()
+        feature_list.append(res)
 
-    num = 3000
-    text = text[:num]
-    labels = labels[:num]
-    features = []
-    data = []
-    for i, line in enumerate(text):
-        if i % 100 == 0:
-            print("{:5d}/{:5d}: {}".format(i, len(text), line))
-        seq, _ = prepare_sequence(line, vocab)
-        data.append(torch.LongTensor(seq))
-    
-    packed = safe_pack_sequence(data).cuda()
-    res = encoder(packed)
-    features = res.cpu().detach().numpy()
+    features = np.concatenate(feature_list)
+    print(features.shape)
     z['text'] = text
     z['labels'] = labels
 
@@ -150,6 +152,7 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
 
         # Evaluate
         acc = clf.score(X_test, y_test)
+        print("test acc: {:.3f}".format(acc))
         scores.append(acc)
 
     print(scores)
@@ -171,6 +174,7 @@ if __name__ == '__main__':
     qt.load_state_dict(trained_params)
     _LOGGER.info("Restored successfully")
     qt.eval()
+    qt.training = False
 
     eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
 
