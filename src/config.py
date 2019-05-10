@@ -15,5 +15,5 @@ CONFIG = {
     'norm_threshold': 1.0,
     'num_epochs': 5,
     'lr': 5e-4,
-    'vocab_size': 10000,
+    'vocab_size': 50000,
 }

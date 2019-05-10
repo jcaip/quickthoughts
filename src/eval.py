@@ -164,7 +164,7 @@ if __name__ == '__main__':
 
     qt = QuickThoughts(WV_MODEL).cuda()
     trained_params = torch.load("{}/data/FINAL_MODEL.pth".format(CONFIG['base_dir']))
-    qt.load_state_dict(trained_params)
+    qt.load_state_dict(trained_params['state_dict'])
     qt.eval()
 
     _LOGGER.info("Restored successfully")
