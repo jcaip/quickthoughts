@@ -2,7 +2,7 @@ import os
 import time 
 from datetime import datetime
 
-__base_dir = os.getenv('DIR', '/home/jcjessecai/quickthoughts')
+__base_dir = os.getenv('DIR', '~/quickthoughts')
 
 CONFIG = {
     'base_dir': __base_dir,
