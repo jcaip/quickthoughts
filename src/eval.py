@@ -23,6 +23,7 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold
 from data.utils import prepare_sequence
 from numpy.random import RandomState
+from train import WV_MODEL
 
 
 pool = Pool(6)
@@ -160,10 +161,9 @@ if __name__ == '__main__':
 
     start = time.time()
 
-    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
 
     qt = QuickThoughts(WV_MODEL).cuda()
-    trained_params = torch.load("{}/data/FINAL_MODEL.pth".format(CONFIG['base_dir']))
+    trained_params = torch.load("{}/checkpoints/05-13-18-46-07/FINAL_MODEL.pth".format(CONFIG['base_dir']))
     qt.load_state_dict(trained_params['state_dict'])
     qt.eval()
 

@@ -5,7 +5,7 @@ from utils import log_param_info
 
 class UniGRUEncoder(nn.Module):
 
-    def __init__(self, wv_model, hidden_size=1000, cuda=True):
+    def __init__(self, wv_model, hidden_size, cuda=True):
         super(UniGRUEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
         self.hidden_size = hidden_size
@@ -29,11 +29,11 @@ class UniGRUEncoder(nn.Module):
 
 class QuickThoughts(nn.Module):
 
-    def __init__(self, wv_model, encoder='uni-gru', cuda=True):
+    def __init__(self, wv_model, hidden_size=1000, encoder='uni-gru', cuda=True):
         super(QuickThoughts, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
-        self.enc_f = UniGRUEncoder(wv_model, cuda=cuda)
-        self.enc_g = UniGRUEncoder(wv_model, cuda=cuda)
+        self.enc_f = UniGRUEncoder(wv_model, hidden_size, cuda=cuda)
+        self.enc_g = UniGRUEncoder(wv_model, hidden_size, cuda=cuda)
         self.log_softmax = nn.LogSoftmax(dim=1)
 
     # generate targets softmax

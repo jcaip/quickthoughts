@@ -11,6 +11,7 @@ from qt_model import QuickThoughts
 from utils import checkpoint_training, restore_training, safe_pack_sequence, VisdomLinePlotter
 from config import CONFIG
 from pprint import pformat, pprint
+import gensim.downloader as api
 import os
 import json
 
@@ -21,9 +22,7 @@ if __name__ == '__main__':
 
     plotter = VisdomLinePlotter()
 
-    pprint(CONFIG)
-
-    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
+    WV_MODEL = api.load('glove-wiki-gigaword-300')
     bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL)
     #setting up training
     os.mkdir(CONFIG['checkpoint_dir'])
@@ -35,7 +34,7 @@ if __name__ == '__main__':
 
 
     # init wordvec model
-    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
+    #WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
 
     # create dataset
     bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL.vocab)
@@ -45,7 +44,7 @@ if __name__ == '__main__':
                             drop_last=True,
                             collate_fn=safe_pack_sequence)
     # model and loss function
-    qt = QuickThoughts(WV_MODEL).cuda()
+    qt = QuickThoughts(WV_MODEL, CONFIG['hidden_size']).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
     kl_loss = nn.KLDivLoss(reduction='batchmean')
     last_train_idx = restore_training(CONFIG['checkpoint_dir'], qt, optimizer) if CONFIG['resume'] else -1
@@ -79,7 +78,6 @@ if __name__ == '__main__':
 
         if i % 100 == 0:
             plotter.plot('loss', 'train', 'Loss', i, loss.item())
-
 
         if i % 10000 == 0: 
             checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)

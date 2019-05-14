@@ -1,6 +1,8 @@
 # QuickThought
 pytorch reimplementation of quickthoughts paper: https://arxiv.org/pdf/1803.02893.pdf
 
+This is still very heavily a WIP
+
 ### Setup
 
 First you'll need to pull down the bookcorpus submodule and follow the instructions there to get `all.txt`.
