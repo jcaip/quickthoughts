@@ -1,4 +1,8 @@
 import logging
+import os
+import json
+import numpy as np
+import sys
 import time
 import torch
 import torch.nn as nn
@@ -14,39 +18,13 @@ from qt_model import QuickThoughts
 from utils import checkpoint_training, restore_training, safe_pack_sequence
 from config import CONFIG
 from pprint import pformat
-import os
-import json
-import numpy as np
-import sys
 from scipy.sparse import hstack
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, shuffle
 from data.utils import prepare_sequence
 from numpy.random import RandomState
-from train import WV_MODEL
-
 
 pool = Pool(6)
-
-def shuffle_data(X, L, seed=1234):
-    """
-    Shuffle the data
-    """
-    prng = RandomState(seed)
-    inds = np.arange(len(X))
-    prng.shuffle(inds)
-    X = [X[i] for i in inds]
-    L = L[inds]
-    return (X, L)    
-
-def compute_labels(pos, neg):
-    """
-    Construct list of labels
-    """
-    labels = np.zeros(len(pos) + len(neg))
-    labels[:len(pos)] = 1.0
-    labels[len(pos):] = 0.0
-    return labels
 
 def load_data(encoder, vocab, name, loc='./data/', seed=1234):
     z = {}
