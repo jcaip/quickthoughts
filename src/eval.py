@@ -1,3 +1,10 @@
+"""
+Evaluation script for a variety of datasets.
+This is a slightly modified version of the original
+skip-thoughts eval code, found here:
+
+https://github.com/ryankiros/skip-thoughts/blob/master/eval_classification.py
+"""
 import logging
 import os
 import json
@@ -20,6 +27,7 @@ from sklearn.utils import shuffle
 from data.utils import prepare_sequence
 from numpy.random import RandomState
 
+_LOGGER = logging.getLogger(__name__)
 pool = Pool(6)
 
 def load_data(encoder, vocab, name, loc='./data/', seed=1234):
@@ -56,60 +64,49 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
     text, labels, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
     _LOGGER.info("Fitting logistic layers")
 
-    scan = [ 2**t for t in range(91) ]
+    scan = [ 2**t for t in range(8) ]
     npts = len(text)
 
-    kf = KFold(n_splits=k, random_state=seed)
-    scores = []
-    for train, test in kf.split(labels):
-        # Split data
-        X_train = features[train]
-        y_train = labels[train]
-        X_test = features[test]
-        y_test = labels[test]
-
-        Xraw = [ text[i] for i in train ]
-        Xraw_test = [ text[i] for i in test ]
-
-        def fit_inner_kfold(s):
-            innerkf = KFold(n_splits=k, random_state=seed+1)
-            innerscores = []
-            for innertrain, innertest in innerkf.split(X_train):
-                # Split data
-                X_innertrain = X_train[innertrain]
-                y_innertrain = y_train[innertrain]
-                X_innertest = X_train[innertest]
-                y_innertest = y_train[innertest]
-
-                Xraw_innertrain = [Xraw[i] for i in innertrain]
-                Xraw_innertest = [Xraw[i] for i in innertest]
-
-                clf = LogisticRegression(solver='sag', C=s)
-                clf.fit(X_innertrain, y_innertrain)
-                acc = clf.score(X_innertest, y_innertest)
-                innerscores.append(acc)
-
-            # Append mean score
-            return (s, np.mean(innerscores))
-
-        start = time.time()
-        scanscores = pool.map(fit_inner_kfold, scan)
-        s, best_score = max(scanscores, key=operator.itemgetter(1))
+    def fit_clf(X_train, y_train, X_test, y_test, s):
         clf = LogisticRegression(solver='sag', C=s)
         clf.fit(X_train, y_train)
         acc = clf.score(X_test, y_test)
-        scores.append(acc)
+        _LOGGER.info("Fitting logistic model with s: {:.3d} and acc: {:.2%}".format(s, acc))
+        return acc
 
+    def chunk_data(train_idx, test_idx, X, y):
+        X_train, y_train = X[train_idx], y[train_idx]
+        X_test, y_test = X[test_idx], y[test_idx]
+
+        return (X_train, y_train, X_test, y_test)
+
+    def fit_outer_kfold(train, test):
+
+        X_train, y_train, X_test, y_test = chunk_data(train, test, features, labels)
+
+        start = time.time()
+
+        def fit_inner_kfold(s):
+            innerkf = KFold(n_splits=k, random_state=seed+1)
+            innerscores = [fit_clf(*chunk_data(*train_test_idx, X_train, y_train), s) for train_test_idx in innerkf.split(X_train)]
+            return (s, np.mean(innerscores))
+
+        scanscores = pool.map(fit_inner_kfold, scan)
+        s, best_score = max(scanscores, key=operator.itemgetter(1))
+        acc = fit_clf(X_train, y_train, X_test, y_test, s)
         _LOGGER.info("Found best C={:3d} with accuracy: {:.2%} in {:.2f} seconds | Test Accuracy: {:.2%}".format(s, best_score, time.time()-start, acc))
 
-    return scores
+        return acc
+
+    kf = KFold(n_splits=k, random_state=seed)
+    return [fit_outer_kfold(*train_test_idx) for train_test_idx in kf.split(labels)]
 
 
-_LOGGER = logging.getLogger(__name__)
 
 if __name__ == '__main__':
 
     start = time.time()
+
     WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
     qt = QuickThoughts(WV_MODEL, hidden_size=1000).cuda()
     trained_params = torch.load("{}/data/FINAL_MODEL.pth".format(CONFIG['base_dir']))
@@ -117,10 +114,8 @@ if __name__ == '__main__':
     qt.eval()
 
     _LOGGER.info("Restored successfully")
-
     scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
-
     end = time.time()
-    _LOGGER.info("Finished Evaluation of {} | Accuracy: {} | Total Time: {}".format('MR', np.mean(scores), end-start))
+    _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}".format('MR', np.mean(scores), end-start))
 
 
