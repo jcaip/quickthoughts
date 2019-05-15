@@ -1,9 +1,6 @@
-*.bin
 src/data/.vector_cache/*
 checkpoints/*
 src/__pycache__/*
 src/data/__pycache__/*
 data/*
-*.txt
-*.bak
 .vscode/*
