@@ -12,8 +12,10 @@ CONFIG = {
     'resume': False,
     'context_size': 1,
     'batch_size': 400,
+    'test_batch_size': 1000,
     'norm_threshold': 5.0,
     'hidden_size': 1000,
     'num_epochs': 5,
     'lr': 5e-4,
+    'vocab_size': 10000,
 }
