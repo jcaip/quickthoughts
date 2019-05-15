@@ -64,14 +64,14 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
     text, labels, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
     _LOGGER.info("Fitting logistic layers")
 
-    scan = [ 2**t for t in range(8) ]
+    scan = [ 2**t for t in range(1) ]
     npts = len(text)
 
     def fit_clf(X_train, y_train, X_test, y_test, s):
         clf = LogisticRegression(solver='sag', C=s)
         clf.fit(X_train, y_train)
         acc = clf.score(X_test, y_test)
-        _LOGGER.info("Fitting logistic model with s: {:.3d} and acc: {:.2%}".format(s, acc))
+        _LOGGER.info("Fitting logistic model with s: {:3d} and acc: {:.2%}".format(s, acc))
         return acc
 
     def chunk_data(train_idx, test_idx, X, y):
@@ -91,7 +91,7 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
             innerscores = [fit_clf(*chunk_data(*train_test_idx, X_train, y_train), s) for train_test_idx in innerkf.split(X_train)]
             return (s, np.mean(innerscores))
 
-        scanscores = pool.map(fit_inner_kfold, scan)
+        scanscores = [fit_inner_kfold(s) for s in scan]
         s, best_score = max(scanscores, key=operator.itemgetter(1))
         acc = fit_clf(X_train, y_train, X_test, y_test, s)
         _LOGGER.info("Found best C={:3d} with accuracy: {:.2%} in {:.2f} seconds | Test Accuracy: {:.2%}".format(s, best_score, time.time()-start, acc))
@@ -99,7 +99,8 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
         return acc
 
     kf = KFold(n_splits=k, random_state=seed)
-    return [fit_outer_kfold(*train_test_idx) for train_test_idx in kf.split(labels)]
+    scores = pool.map(lambda x: fit_outer_kfold(*x), kf.split(labels))
+    return  scores
 
 
 
