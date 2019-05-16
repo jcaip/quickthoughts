@@ -21,21 +21,15 @@ _LOGGER = logging.getLogger(__name__)
 if __name__ == '__main__':
 
     plotter = VisdomLinePlotter()
-
-    WV_MODEL = api.load('glove-wiki-gigaword-300')
-    bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL)
     #setting up training
     os.mkdir(CONFIG['checkpoint_dir'])
     config_filepath = "{}/{}".format(CONFIG['checkpoint_dir'], 'config.json')
     with open(config_filepath, 'w') as fp:
         _LOGGER.info(pformat(CONFIG))
         json.dump(CONFIG, fp)
-        _LOGGER.info("Wrote config to file: {}".format(config_filepath))
+    _LOGGER.info("Wrote config to file: {}".format(config_filepath))
 
-
-    # init wordvec model
-    #WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
-
+    WV_MODEL = api.load(CONFIG['embedding'])
     # create dataset
     bookcorpus = BookCorpus(CONFIG['data_path'], WV_MODEL.vocab)
     train_iter = DataLoader(bookcorpus,
@@ -47,22 +41,21 @@ if __name__ == '__main__':
     qt = QuickThoughts(WV_MODEL, CONFIG['hidden_size']).cuda()
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
     kl_loss = nn.KLDivLoss(reduction='batchmean')
-    last_train_idx = restore_training(CONFIG['checkpoint_dir'], qt, optimizer) if CONFIG['resume'] else -1
 
+    last_train_idx = restore_training(CONFIG['checkpoint_dir'], qt, optimizer) if CONFIG['resume'] else -1
     #start training
     failed_or_skipped_batches = 0
     start = time.time()
     qt.train()
 
     for i, data in enumerate(train_iter):
-        # this handles resuming / when we have a bad sample (0 -len sequence)
+        # this handles resuming / when we have a bad sample (0-len sequence)
         if i < last_train_idx or not data:
             failed_or_skipped_batches += 1
             continue
 
         optimizer.zero_grad()
         data = data.cuda()
-
         log_scores = qt(data)
         targets = qt.generate_targets(CONFIG['batch_size'])
 
@@ -82,11 +75,7 @@ if __name__ == '__main__':
         if i % 10000 == 0: 
             checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)
 
-        if i % 100000 == 0: 
-            checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer, filename=str(i))
-
     checkpoint_training(CONFIG['checkpoint_dir'], -1, qt, optimizer, filename="FINAL_MODEL")
-    end = time.time()
-    _LOGGER.info("Finished Training | Total Time: {}".format(end-start))
+    _LOGGER.info("Finished Training | Total Time: {:.1f}".format(time.time()-start))
 
 

@@ -23,6 +23,7 @@ def log_param_info(model):
             _LOGGER.debug("name: {} size: {}".format(name, param.data.shape))
 
 def checkpoint_training(checkpoint_dir, idx, model, optim, filename="checkpoint_latest"):
+    """checkpoint training, saves optimizer, model, and index"""
     checkpoint_dict = {
         'batch': idx,
         'state_dict': model.state_dict(),
@@ -33,6 +34,7 @@ def checkpoint_training(checkpoint_dir, idx, model, optim, filename="checkpoint_
     torch.save(checkpoint_dict, savepath)
 
 def restore_training(checkpoint_dir, model, optimizer, filename="checkpoint_latest"):
+    """restore training from a checkpoint dir, returns batch"""
     checkpoint = torch.load("{}/{}.pth".format(checkpoint_dir, filename))
     print(checkpoint)
     model.load_state_dict(checkpoint['state_dict'])

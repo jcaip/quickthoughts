@@ -35,6 +35,7 @@ class QuickThoughts(nn.Module):
         self.enc_f = UniGRUEncoder(wv_model, hidden_size, cuda=cuda)
         self.enc_g = UniGRUEncoder(wv_model, hidden_size, cuda=cuda)
         self.log_softmax = nn.LogSoftmax(dim=1)
+        log_param_info(self)
 
     # generate targets softmax
     def generate_targets(self, num_samples):
@@ -43,7 +44,6 @@ class QuickThoughts(nn.Module):
             targets += torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
         targets /= targets.sum(1, keepdim=True)
         return targets
-        log_param_info(self)
 
     #expects a packed sequence
     def forward(self, inputs):
@@ -62,11 +62,3 @@ class QuickThoughts(nn.Module):
 
         #return log scores and target
         return self.log_softmax(scores)
-
-    # generate target probability distribution
-    def generate_targets(self, num_samples):
-        targets = torch.zeros(num_samples, num_samples, device=self.device)
-        for offset in [-1, 1]:
-            targets += torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
-        targets /= targets.sum(1, keepdim=True)
-        return targets

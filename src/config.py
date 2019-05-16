@@ -1,5 +1,4 @@
 import os
-import time 
 from datetime import datetime
 
 __base_dir = os.getenv('DIR', '/home/jcaip/quickthoughts')
@@ -9,7 +8,6 @@ CONFIG = {
     'vec_path': '{}/data/GoogleNews-vectors-negative300.bin'.format(__base_dir),
     'data_path': '{}/data/cleaned.txt'.format(__base_dir),
     'checkpoint_dir': '{}/checkpoints/{:%m-%d-%H-%M-%S}'.format(__base_dir, datetime.now()), 
-     #'checkpoint_dir': '{}/checkpoints/latest'.format(__base_dir, datetime.now()), 
     'resume': False,
     'context_size': 1,
     'batch_size': 400,
@@ -19,4 +17,5 @@ CONFIG = {
     'num_epochs': 5,
     'lr': 5e-4,
     'vocab_size': 10000,
+    'embedding': 'glove-wiki-gigaword-300',
 }
