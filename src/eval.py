@@ -28,7 +28,7 @@ from data.utils import prepare_sequence
 from numpy.random import RandomState
 
 _LOGGER = logging.getLogger(__name__)
-pool = Pool(6)
+pool = Pool(4)
 
 def load_data(encoder, vocab, name, loc='./data/', seed=1234):
     if name == 'MR':
@@ -59,7 +59,7 @@ def load_data(encoder, vocab, name, loc='./data/', seed=1234):
     return text, labels, features
 
 
-def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
+def eval_nested_kfold(encoder, vocab, name, loc='../data/rt-polaritydata', k=10, seed=1234):
     # Load the dataset and extract features
     text, labels, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
     _LOGGER.info("Fitting logistic layers")
@@ -71,7 +71,7 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/', k=10, seed=1234):
         clf = LogisticRegression(solver='sag', C=s)
         clf.fit(X_train, y_train)
         acc = clf.score(X_test, y_test)
-        _LOGGER.info("Fitting logistic model with s: {:3d} and acc: {:.2%}".format(s, acc))
+        #_LOGGER.info("Fitting logistic model with s: {:3d} and acc: {:.2%}".format(s, acc))
         return acc
 
     def chunk_data(train_idx, test_idx, X, y):
@@ -108,10 +108,11 @@ if __name__ == '__main__':
 
     start = time.time()
 
-    WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
+    #WV_MODEL = KeyedVectors.load_word2vec_format(CONFIG['vec_path'], binary=True, limit=CONFIG['vocab_size'])
+    WV_MODEL = api.load('glove-wiki-gigaword-300')
     qt = QuickThoughts(WV_MODEL, hidden_size=1000).cuda()
-    trained_params = torch.load("{}/data/FINAL_MODEL.pth".format(CONFIG['base_dir']))
-    qt.load_state_dict(trained_params)
+    trained_params = torch.load("{}/checkpoints/05-16-00-40-47/FINAL_MODEL.pth".format(CONFIG['base_dir']))
+    qt.load_state_dict(trained_params['state_dict'])
     qt.eval()
 
     _LOGGER.info("Restored successfully")

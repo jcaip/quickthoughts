@@ -1,9 +1,11 @@
 from operator import itemgetter
 from tqdm import tqdm
-
+import itertools
+from gensim.utils import tokenize
+  
 def prepare_sequence(text, vocab, max_len=50):
-    pruned_sequence = zip(filter(lambda x: x in vocab, text), range(max_len))
-    seq = [vocab[x].index for x, _ in pruned_sequence]
+    pruned_sequence = itertools.islice(filter(lambda x: x in vocab, tokenize(text)), max_len)
+    seq = [vocab[x].index for x in pruned_sequence]
     return (seq, text)
 
 #this function should process all.txt and removes all lines that are empty assuming the vocab
