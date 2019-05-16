@@ -14,7 +14,7 @@ class BookCorpus(Dataset):
         _LOGGER.info("Successfully read {} lines from file: {}".format(len(self.examples), file_path))
 
     def __getitem__(self, i):
-        return torch.LongTensor(prepare_sequence(self.examples[i], self.vocab)[0])
+        return torch.LongTensor(prepare_sequence(self.examples[i], self.vocab))
 
     def __len__(self):
         return len(self.examples)
