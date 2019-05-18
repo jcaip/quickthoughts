@@ -54,7 +54,7 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=1000):
 
         return encoder(packed).cpu().detach().numpy()
 
-    feature_list = [make_batch(i) for i in range(0, size, test_batch_size]
+    feature_list = [make_batch(i) for i in range(0, size, test_batch_size)]
     features = np.concatenate(feature_list)
     _LOGGER.info("Test feature matrix of shape: {}".format(features.shape))
 
@@ -69,7 +69,7 @@ def fit_clf(X_train, y_train, X_test, y_test, s):
     return acc
 
 def chunk_data(train_idx, test_idx, X, y):
-    """returns a split of the data""""
+    """returns a split of the data"""
     X_train, y_train = X[train_idx], y[train_idx]
     X_test, y_test = X[test_idx], y[test_idx]
 
@@ -97,22 +97,34 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/rt-polaritydata', k=10,
     text, labels, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
     scan = [ 2**t for t in range(1) ]
     npts = len(text)
-    pool = Pool(4)
+    pool = Pool(6)
     kf = KFold(n_splits=k, random_state=seed)
     scores = pool.map(lambda x: fit_outer_kfold(*x), kf.split(labels))
     return scores
 
 if __name__ == '__main__':
     start = time.time()
-    checkpont_dir = '/home/jcaip/quickthoughts/checkpoints/'
-    CONFIG = json.loads("{}/config.json".format(checkpoint_dir))
+    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/latest'
+    with open("{}/config.json".format(checkpoint_dir)) as fp:
+        CONFIG = json.load(fp)
 
     WV_MODEL = api.load(CONFIG['embedding'])
     qt = QuickThoughts(WV_MODEL, hidden_size=CONFIG['hidden_size']).cuda()
-    trained_params = torch.load("{}/FINAL_MODEL.pth".format(checkpoint_dir)
+    trained_params = torch.load("{}/FINAL_MODEL.pth".format(checkpoint_dir))
     qt.load_state_dict(trained_params['state_dict'])
     qt.eval()
 
     _LOGGER.info("Restored successfully from {}".format(checkpoint_dir))
-    scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
-    _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
+    text, labels, features = load_data(qt, WV_MODEL.vocab, 'MR', loc='../data/rt-polaritydata', seed=1234)
+
+    while True:
+        query = prepare_sequence(input("Query sentence"), WV_MODEL.vocab)
+        packed= safe_pack_sequence([ torch.LongTensor(query) ]).cuda()
+        query_vec = qt(packed, catdim=0).cpu().detach().numpy()
+        asdf = features.dot(query_vec)
+        idx = np.argsort(-asdf)
+        for i in idx[:5]:
+            _LOGGER.info("Score: {:.2f} | Sentence: {}".format(asdf[i], text[i]))
+
+    # scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
+    # _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))

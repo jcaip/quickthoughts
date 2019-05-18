@@ -46,13 +46,13 @@ class QuickThoughts(nn.Module):
         return targets
 
     #expects a packed sequence
-    def forward(self, inputs):
+    def forward(self, inputs, catdim=1):
         encoding_f = self.enc_f(inputs)
         encoding_g = self.enc_g(inputs)
         
         #testing
         if not self.training:
-            return torch.cat((encoding_f, encoding_g), dim=1)
+            return torch.cat((encoding_f, encoding_g), dim=catdim)
 
         #training
         scores = torch.matmul(encoding_f, encoding_g.t())
