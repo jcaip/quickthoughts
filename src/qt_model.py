@@ -45,6 +45,13 @@ class QuickThoughts(nn.Module):
         targets /= targets.sum(1, keepdim=True)
         return targets
 
+    def generate_smooth_targets(self, num_samples):
+        targets = torch.zeros(num_samples, num_samples, device=self.device)
+        for offset, scale in zip([-2, -1, 1, 2], [1, 3, 3, 1]):
+            targets += scale*torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
+        targets /= targets.sum(1, keepdim=True)
+        return targets
+
     #expects a packed sequence
     def forward(self, inputs, catdim=1):
         encoding_f = self.enc_f(inputs)

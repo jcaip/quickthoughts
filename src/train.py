@@ -57,7 +57,7 @@ if __name__ == '__main__':
         optimizer.zero_grad()
         data = data.cuda()
         log_scores = qt(data)
-        targets = qt.generate_targets(CONFIG['batch_size'])
+        targets = qt.generate_smooth_targets(CONFIG['batch_size'])
 
         #compute loss
         loss = kl_loss(log_scores, targets)
