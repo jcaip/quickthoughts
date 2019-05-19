@@ -15,8 +15,9 @@ import numpy as np
 import gensim.downloader as api
 from gensim.models import KeyedVectors
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import KFold
+from sklearn.model_selection import KFold, train_test_split
 from sklearn.utils import shuffle
+import matplotlib.pyplot as plt
 from pathos.multiprocessing import ProcessingPool as Pool
 from data.utils import prepare_sequence
 from data.bookcorpus import BookCorpus
@@ -38,9 +39,26 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=1000):
             pos = [line.decode('latin-1').strip() for line in f]
         with open(os.path.join(loc, 'rt-polarity.neg'), 'rb') as f:
             neg = [line.decode('latin-1').strip() for line in f]
+    elif name =='SUBJ':
+        with open(os.path.join(loc, 'plot.tok.gt9.5000'), 'rb') as f:
+            pos = [line.decode('latin-1').strip() for line in f]
+        with open(os.path.join(loc, 'quote.tok.gt9.5000'), 'rb') as f:
+            neg = [line.decode('latin-1').strip() for line in f]
+    elif name == 'CR':
+        with open(os.path.join(loc, 'custrev.pos'), 'rb') as f:
+            pos = [line.decode('latin-1').strip() for line in f]
+        with open(os.path.join(loc, 'custrev.neg'), 'rb') as f:
+            neg = [line.decode('latin-1').strip() for line in f]
+    elif name =='MPQA':
+        with open(os.path.join(loc, 'mpqa.pos'), 'rb') as f:
+            pos = [line.decode('latin-1').strip() for line in f]
+        with open(os.path.join(loc, 'mpqa.neg'), 'rb') as f:
+            neg = [line.decode('latin-1').strip() for line in f]
 
     labels = np.concatenate((np.ones(len(pos)), np.zeros(len(neg))))
     text, labels = shuffle(pos+neg, labels, random_state=seed)
+
+    #prune for testing 
     size = len(labels)
     _LOGGER.info("Loaded dataset {} with total lines: {}".format(name, size))
 
@@ -90,6 +108,7 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/rt-polaritydata', k=10,
 
         scanscores = [fit_inner_kfold(s) for s in scan]
         s, best_score = max(scanscores, key=operator.itemgetter(1))
+
         acc = fit_clf(X_train, y_train, X_test, y_test, s)
         _LOGGER.info("Found best C={:3d} with accuracy: {:.2%} in {:.2f} seconds | Test Accuracy: {:.2%}".format(s, best_score, time.time()-start, acc))
         return acc
@@ -101,6 +120,20 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/rt-polaritydata', k=10,
     kf = KFold(n_splits=k, random_state=seed)
     scores = pool.map(lambda x: fit_outer_kfold(*x), kf.split(labels))
     return scores
+
+def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
+    text, labels, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
+
+    acc = []
+    num_examples = [10, 100, 250, 500, 1000, 5000]
+    for k in num_examples:
+        X_train, X_test, y_train, y_test = train_test_split(features, labels, train_size=k)
+        acc_t = fit_clf(X_train, y_train, X_test, y_test, 1)
+        acc.append(acc_t)
+        _LOGGER.info("Trained on {:4d} examples - Test Accuracy: {:.2%}".format(k, acc_t))
+    
+    return num_examples, acc
+    
 
 if __name__ == '__main__':
     start = time.time()
@@ -115,16 +148,22 @@ if __name__ == '__main__':
     qt.eval()
 
     _LOGGER.info("Restored successfully from {}".format(checkpoint_dir))
-    text, labels, features = load_data(qt, WV_MODEL.vocab, 'MR', loc='../data/rt-polaritydata', seed=1234)
 
-    while True:
-        query = prepare_sequence(input("Query sentence"), WV_MODEL.vocab)
-        packed= safe_pack_sequence([ torch.LongTensor(query) ]).cuda()
-        query_vec = qt(packed, catdim=0).cpu().detach().numpy()
-        asdf = features.dot(query_vec)
-        idx = np.argsort(-asdf)
-        for i in idx[:5]:
-            _LOGGER.info("Score: {:.2f} | Sentence: {}".format(asdf[i], text[i]))
-
+    # nn search interactive
+    # text, labels, features = load_data(qt, WV_MODEL.vocab, 'MR', loc='../data/rt-polaritydata', seed=1234)
+    # while True:
+        # query = prepare_sequence(input("Query sentence: "), WV_MODEL.vocab)
+        # packed= safe_pack_sequence([ torch.LongTensor(query) ]).cuda()
+        # query_vec = qt(packed, catdim=0).cpu().detach().numpy()
+        # asdf = features.dot(query_vec)
+        # idx = np.argsort(-asdf)
+        # for i in idx[:5]:
+            # _LOGGER.info("Score: {:.2f} | Sentence: {}".format(asdf[i], text[i]))
     # scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
     # _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
+
+    num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
+
+    plt.plot(num_examples, acc)
+    plt.savefig("test.png")
+
