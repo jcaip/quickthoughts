@@ -1,5 +1,7 @@
 import torch
 import torch.nn as nn
+import numpy as np
+from scipy.linalg import block_diag
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from utils import log_param_info
 
@@ -45,11 +47,22 @@ class QuickThoughts(nn.Module):
         targets /= targets.sum(1, keepdim=True)
         return targets
 
+    # trying to generate smooth targets
     def generate_smooth_targets(self, num_samples):
         targets = torch.zeros(num_samples, num_samples, device=self.device)
         for offset, scale in zip([-2, -1, 1, 2], [1, 3, 3, 1]):
             targets += scale*torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
         targets /= targets.sum(1, keepdim=True)
+        return targets
+
+    # generate block batch targets
+    def generate_block_tragets(self, num_samples, block_size=10):
+        block_targets = np.ones((block_size, block_size))
+        num_blocks = num_samples // block_size
+
+        np_targets = block_diag(block_targest for i in range(num_blocks))
+
+        targets = torch.Tensor(np_targets, device=self.device)
         return targets
 
     #expects a packed sequence
