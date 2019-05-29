@@ -1,5 +1,8 @@
 import logging
+import itertools
 import time
+import operator
+import functools
 import torch
 import torch.nn as nn
 import torch.optim as optim
@@ -11,6 +14,7 @@ from qt_model import QuickThoughts
 from utils import checkpoint_training, restore_training, safe_pack_sequence, VisdomLinePlotter
 from config import CONFIG
 from pprint import pformat, pprint
+from tqdm import tqdm
 import gensim.downloader as api
 import os
 import json
@@ -46,21 +50,38 @@ if __name__ == '__main__':
     #start training
     failed_or_skipped_batches = 0
     start = time.time()
-    qt.train()
+    # qt.train()
 
-    for i, data in enumerate(train_iter):
-        # this handles resuming / when we have a bad sample (0-len sequence)
-        if i < last_train_idx or not data:
-            failed_or_skipped_batches += 1
+    positive_block_size = 5
+    #number of heads in the datset
+    num_blocks = CONFIG['batch_size'] // positive_block_size
+    block_offset = len(bookcorpus) // num_blocks
+    heads = list(range(0, len(bookcorpus), block_offset))
+    _LOGGER.info("Heads: {}".format(heads))
+
+
+    def get_batch(heads, sample_size):
+        examples = []
+        for head in heads:
+            for i in range(head, head+sample_size):
+                examples.append(bookcorpus[i])
+        return safe_pack_sequence(examples)
+
+    #do this 
+    for i in tqdm(range(0, block_offset)):
+        
+        data = get_batch(heads, positive_block_size)
+        if not data:
             continue
 
         optimizer.zero_grad()
         data = data.cuda()
         log_scores = qt(data)
-        targets = qt.generate_smooth_targets(CONFIG['batch_size'])
+        targets = qt.generate_block_targets(positive_block_size, num_blocks)
+        print(targets)
 
         #compute loss
-        loss = kl_loss(log_scores, targets)
+        loss = kl_loss(log_scores.type(torch.cuda.DoubleTensor), targets.type(torch.cuda.DoubleTensor))
         loss.backward()
         #grad clipping
         nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
@@ -70,7 +91,7 @@ if __name__ == '__main__':
             _LOGGER.info("batch: {:6d} | loss: {:.4f} | failed/skipped: {:3d}".format(i, loss, failed_or_skipped_batches))
 
         if i % 100 == 0:
-            plotter.plot('loss', 'train', 'Loss', i, loss.item())
+            plotter.plot('loss', 'train', 'Run: {} Loss'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, loss.item())
 
         if i % 10000 == 0: 
             checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)

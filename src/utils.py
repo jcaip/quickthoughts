@@ -13,7 +13,15 @@ _LOGGER = logging.getLogger(__name__)
 
 def safe_pack_sequence(x):
     try:
-        return pack_sequence(x, enforce_sorted=False)
+        packed_batch = pack_sequence(x, enforce_sorted=False)
+        # targets = torch.zeros(len(x), len(x))
+        # for i, t1 in enumerate(x):
+            # for j in range(i+1, len(x)):
+                # targets[i, j] = len(np.setdiff1d(t1.numpy(),x[j].numpy()))
+        # targets += targets.t()
+
+        return packed_batch
+            
     except Exception as e:
         _LOGGER.exception(e)
 

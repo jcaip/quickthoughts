@@ -10,7 +10,6 @@ class BookCorpus(Dataset):
         self.vocab = vocab
         with open(file_path) as f:
             self.examples = list(f)
-
         _LOGGER.info("Successfully read {} lines from file: {}".format(len(self.examples), file_path))
 
     def __getitem__(self, i):

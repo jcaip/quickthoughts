@@ -137,7 +137,7 @@ def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
 
 if __name__ == '__main__':
     start = time.time()
-    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/latest'
+    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/broken'
     with open("{}/config.json".format(checkpoint_dir)) as fp:
         CONFIG = json.load(fp)
 
@@ -159,11 +159,8 @@ if __name__ == '__main__':
         # idx = np.argsort(-asdf)
         # for i in idx[:5]:
             # _LOGGER.info("Score: {:.2f} | Sentence: {}".format(asdf[i], text[i]))
-    # scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
-    # _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
 
-    num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
+    scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
+    _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
 
-    plt.plot(num_examples, acc)
-    plt.savefig("test.png")
-
+    # num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')

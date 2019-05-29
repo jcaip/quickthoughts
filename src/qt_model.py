@@ -2,6 +2,8 @@ import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
 from utils import log_param_info
+from scipy.linalg import block_diag
+import numpy as np
 
 class UniGRUEncoder(nn.Module):
 
@@ -43,6 +45,17 @@ class QuickThoughts(nn.Module):
         for offset in [-1, 1]:
             targets += torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
         targets /= targets.sum(1, keepdim=True)
+        return targets
+
+
+    # generate batched targets
+    def generate_block_targets(self, positive_block_size, num_blocks):
+        # positive_labels = np.ones((positive_block_size, positive_block_size)) - np.eye(positive_block_size)
+        positive_labels = np.zeros((positive_block_size, positive_block_size))
+        for offset in [-1, 1]:
+            positive_labels += np.diag(np.ones(positive_block_size-abs(offset)), k=offset)
+        np_targets = block_diag(*([positive_labels] * num_blocks))
+        targets = torch.from_numpy(np_targets).type(torch.DoubleTensor)
         return targets
 
     def generate_smooth_targets(self, num_samples):
