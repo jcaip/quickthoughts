@@ -40,7 +40,6 @@ class TransformerEncoder(nn.Module):
         self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors), requires_grad=False)
         self.position = PositionalEncoding(d_model, dropout)
         self.src_embed = nn.Sequential(self.embeddings, self.position)
-
         self.attn = MultiHeadedAttention(h, d_model)
         self.ff = PositionwiseFeedForward(d_model, d_ff, dropout)
         self.encoder = Encoder(EncoderLayer(d_model, self.attn, self.ff, dropout), N)
@@ -48,7 +47,9 @@ class TransformerEncoder(nn.Module):
         
     def forward(self, padded_input, pad=0):
         mask = (padded_input != pad).unsqueeze(-2)
-        return self.encoder(self.src_embed(padded_input), mask)
+        temp = self.src_embed(padded_input)
+        print(temp.shape)
+        return self.encoder(temp, mask)
 
 class QuickThoughts(nn.Module):
 
