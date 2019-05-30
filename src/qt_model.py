@@ -1,12 +1,12 @@
 import torch
 import torch.nn as nn
 from torch.nn.utils.rnn import pack_padded_sequence, pad_packed_sequence
+from transformer_model import PositionalEncoding, PositionwiseFeedForward, MultiHeadedAttention, Encoder, EncoderLayer
 from utils import log_param_info
 from scipy.linalg import block_diag
 import numpy as np
 
 class UniGRUEncoder(nn.Module):
-
     def __init__(self, wv_model, hidden_size, cuda=True):
         super(UniGRUEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
@@ -29,13 +29,34 @@ class UniGRUEncoder(nn.Module):
                                                unpacked.size(2)).unsqueeze(0).to(self.device)
         return unpacked.gather(0, idx).squeeze()
 
+class TransformerEncoder(nn.Module):
+    """
+    Attention based sentence encoder
+    """
+    def __init__(self, wv_model, hidden_size, cuda=True, N=6, d_model=300, d_ff=2048, h=10, dropout=0.1):
+        super(TransformerEncoder, self).__init__()
+        self.device = torch.device('cuda' if cuda else 'cpu')
+        self.embeddings = nn.Embedding(*wv_model.vectors.shape)
+        self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors), requires_grad=False)
+        self.position = PositionalEncoding(d_model, dropout)
+        self.src_embed = nn.Sequential(self.embeddings, self.position)
+
+        self.attn = MultiHeadedAttention(h, d_model)
+        self.ff = PositionwiseFeedForward(d_model, d_ff, dropout)
+        self.encoder = Encoder(EncoderLayer(d_model, self.attn, self.ff, dropout), N)
+
+        
+    def forward(self, padded_input, pad=0):
+        mask = (padded_input != pad).unsqueeze(-2)
+        return self.encoder(self.src_embed(padded_input), mask)
+
 class QuickThoughts(nn.Module):
 
     def __init__(self, wv_model, hidden_size=1000, encoder='uni-gru', cuda=True):
         super(QuickThoughts, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
-        self.enc_f = UniGRUEncoder(wv_model, hidden_size, cuda=cuda)
-        self.enc_g = UniGRUEncoder(wv_model, hidden_size, cuda=cuda)
+        self.enc_f = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
+        self.enc_g = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
         self.log_softmax = nn.LogSoftmax(dim=1)
         log_param_info(self)
 
@@ -60,7 +81,7 @@ class QuickThoughts(nn.Module):
 
     def generate_smooth_targets(self, num_samples):
         targets = torch.zeros(num_samples, num_samples, device=self.device)
-        for offset, scale in zip([-2, -1, 1, 2], [1, 3, 3, 1]):
+        for offset, scale in zip([-3, -2, -1, 1, 2, 3], [1, 1, 10, 10, 1, 1]):
             targets += scale*torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
         targets /= targets.sum(1, keepdim=True)
         return targets

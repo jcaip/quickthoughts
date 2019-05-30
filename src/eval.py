@@ -137,13 +137,14 @@ def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
 
 if __name__ == '__main__':
     start = time.time()
-    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/broken'
+    # checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/broken'
+    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/05-29-11-02-26'
     with open("{}/config.json".format(checkpoint_dir)) as fp:
         CONFIG = json.load(fp)
 
     WV_MODEL = api.load(CONFIG['embedding'])
     qt = QuickThoughts(WV_MODEL, hidden_size=CONFIG['hidden_size']).cuda()
-    trained_params = torch.load("{}/FINAL_MODEL.pth".format(checkpoint_dir))
+    trained_params = torch.load("{}/checkpoint_latest.pth".format(checkpoint_dir))
     qt.load_state_dict(trained_params['state_dict'])
     qt.eval()
 
