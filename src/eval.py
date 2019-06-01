@@ -31,7 +31,7 @@ logging.basicConfig(
 
 _LOGGER = logging.getLogger(__name__)
 
-def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=1000):
+def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=100):
     """load in a binary classification dataste for evaluation"""
 
     if name == 'MR':
@@ -67,13 +67,13 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=1000):
         stop_idx = min(size, j+test_batch_size)
         _LOGGER.info("Processing data from {:5d} to {:5d}".format(j, stop_idx))
         batch_text, batch_labels  = text[j:stop_idx], labels[j:stop_idx]
-        data = [torch.LongTensor(seq) for seq in map(lambda x: prepare_sequence(x, vocab), batch_text)]
+        data = list(map(lambda x: torch.LongTensor(prepare_sequence(x, vocab)), batch_text))
         packed = safe_pack_sequence(data).cuda()
-
         return encoder(packed).cpu().detach().numpy()
 
     feature_list = [make_batch(i) for i in range(0, size, test_batch_size)]
     features = np.concatenate(feature_list)
+    print(features)
     _LOGGER.info("Test feature matrix of shape: {}".format(features.shape))
 
     return text, labels, features
@@ -137,8 +137,7 @@ def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
 
 if __name__ == '__main__':
     start = time.time()
-    # checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/broken'
-    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/05-29-11-02-26'
+    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/05-31-15-54-18'
     with open("{}/config.json".format(checkpoint_dir)) as fp:
         CONFIG = json.load(fp)
 
@@ -161,7 +160,7 @@ if __name__ == '__main__':
         # for i in idx[:5]:
             # _LOGGER.info("Score: {:.2f} | Sentence: {}".format(asdf[i], text[i]))
 
-    scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
-    _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
+    # scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
+    # _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
 
-    # num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
+    num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')

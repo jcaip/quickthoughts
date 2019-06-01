@@ -40,10 +40,10 @@ if __name__ == '__main__':
                             batch_size=CONFIG['batch_size'],
                             num_workers=1,
                             drop_last=True,
-                            collate_fn=pad_sequence)
+                            collate_fn=safe_pack_sequence)
 
     # model and loss function
-    qt = QuickThoughts(WV_MODEL, CONFIG['hidden_size']).cuda()
+    qt = QuickThoughts(WV_MODEL, CONFIG['hidden_size'])
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
     kl_loss = nn.KLDivLoss(reduction='batchmean')
 
@@ -51,6 +51,8 @@ if __name__ == '__main__':
     #start training
     failed_or_skipped_batches = 0
     start = time.time()
+
+    qt = qt.cuda()
     qt.train()
 
     # positive_block_size = 5
@@ -68,11 +70,12 @@ if __name__ == '__main__':
     # for i in tqdm(range(0, block_offset, positive_block_size)):
         # data = get_batch(heads, positive_block_size)
 
-    for i, data in enumerate(train_iter):
+    for i, data in enumerate(tqdm(train_iter)):
         optimizer.zero_grad()
         data = data.cuda()
+
         log_scores = qt(data)
-        targets = qt.generate_smooth_targets(CONFIG['batch_size'])
+        targets = qt.generate_targets(CONFIG['batch_size'])
         # targets = qt.generate_block_targets(positive_block_size, num_blocks)
         # print(torch.sum(targets))
 
@@ -84,7 +87,7 @@ if __name__ == '__main__':
         optimizer.step()
 
         if i % 10 == 0:
-            _LOGGER.info("batch: {:6d} | loss: {:.4f} | failed/skipped: {:3d}".format(i, loss, failed_or_skipped_batches))
+            tqdm.write("batch: {:6d} | loss: {:.4f} | failed/skipped: {:3d}".format(i, loss, failed_or_skipped_batches))
 
         if i % 100 == 0:
             plotter.plot('loss', 'train', 'Run: {} Loss'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, loss.item())

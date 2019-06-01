@@ -6,7 +6,7 @@ from utils import log_param_info
 from scipy.linalg import block_diag
 import numpy as np
 
-class UniGRUEncoder(nn.Module):
+class GRUEncoder(nn.Module):
     def __init__(self, wv_model, hidden_size, cuda=True):
         super(UniGRUEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
@@ -25,15 +25,17 @@ class UniGRUEncoder(nn.Module):
         packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
         packed_output, hidden = self.gru(packed, hidden)
         unpacked, _ = pad_packed_sequence(packed_output)
+        print("encoded:", unpacked.size())
         idx = (lengths - 1).view(-1, 1).expand(unpacked.size(1),
                                                unpacked.size(2)).unsqueeze(0).to(self.device)
+        print("idx:", idx.size())
         return unpacked.gather(0, idx).squeeze()
 
 class TransformerEncoder(nn.Module):
     """
     Attention based sentence encoder
     """
-    def __init__(self, wv_model, hidden_size, cuda=True, N=6, d_model=300, d_ff=2048, h=10, dropout=0.1):
+    def __init__(self, wv_model, hidden_size, cuda=True, N=4, d_model=300, d_ff=1000, h=5, dropout=0.1):
         super(TransformerEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
         self.embeddings = nn.Embedding(*wv_model.vectors.shape)
@@ -45,11 +47,21 @@ class TransformerEncoder(nn.Module):
         self.encoder = Encoder(EncoderLayer(d_model, self.attn, self.ff, dropout), N)
 
         
-    def forward(self, padded_input, pad=0):
+    def forward(self, packed_input, pad=0):
+        padded_input, lengths = pad_packed_sequence(packed_input, batch_first=True)
+        # print("padded input:", padded_input.size())
         mask = (padded_input != pad).unsqueeze(-2)
         temp = self.src_embed(padded_input)
-        print(temp.shape)
-        return self.encoder(temp, mask)
+        # print("temp:", temp.size())
+        unpacked = self.encoder(temp, mask)
+        # print("encoded:", unpacked.size())
+
+        idx = (lengths - 1).view(-1, 1).expand(unpacked.size(0),
+                                               unpacked.size(2)).unsqueeze(1).to(self.device)
+        # print("idx:", idx.size())
+        output = unpacked.gather(1, idx).squeeze()
+        # print("output:", output.size())
+        return output
 
 class QuickThoughts(nn.Module):
 
