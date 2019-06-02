@@ -52,12 +52,12 @@ if __name__ == '__main__':
     #start training
     failed_or_skipped_batches = 0
     start = time.time()
-
     qt = qt.cuda()
     qt.train()
 
-    # positive_block_size = 5
     # #number of heads in the datset
+
+    # positive_block_size = 5
     # num_blocks = CONFIG['batch_size'] // positive_block_size
     # block_offset = len(bookcorpus) // num_blocks
     # heads = list(range(0, len(bookcorpus), block_offset))
@@ -71,38 +71,50 @@ if __name__ == '__main__':
     # for i in tqdm(range(0, block_offset, positive_block_size)):
         # data = get_batch(heads, positive_block_size)
 
+    block_size=5
+
     for j in range(CONFIG['num_epochs']):
         temp = tqdm(train_iter)
+        blocked_enc_f, blocked_enc_g= [], []
         for i, data in enumerate(temp):
+            torch.cuda.empty_cache()
             optimizer.zero_grad()
             data = data.cuda()
 
-            log_scores = qt(data)
-            targets = qt.generate_targets(CONFIG['batch_size'])
-            # targets = qt.generate_block_targets(positive_block_size, num_blocks)
-            # print(torch.sum(targets))
+            enc_f, enc_g = qt(data)
+            blocked_enc_f.append(enc_f)
+            blocked_enc_g.append(enc_g)
 
             #compute loss
-            loss = kl_loss(log_scores.type(torch.cuda.DoubleTensor), targets.type(torch.cuda.DoubleTensor))
-            loss.backward()
-            #grad clipping
-            nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
-            optimizer.step()
+            if len(blocked_enc_f) % block_size == 0 :
+                mean_enc_f = torch.stack(blocked_enc_f).mean(dim=0)
+                mean_enc_g = torch.stack(blocked_enc_g).mean(dim=0)
+                #training
+                scores = torch.matmul(mean_enc_f, mean_enc_g.t())
+                # zero out when it's the same sentence
+                mask = torch.eye(len(scores)).cuda().byte()
+                scores.masked_fill_(mask, 0)    
 
-            if i % 10 == 0:
-                temp.set_description("batch: {:6d} | loss: {:.4f} | failed/skipped: {:3d}".format(i, loss, failed_or_skipped_batches))
+                #return log scores and target
+                log_softmax = nn.LogSoftmax(dim=1)
+                block_log_scores = log_softmax(scores)
+                targets = qt.generate_targets(CONFIG['batch_size'])
+                loss = kl_loss(block_log_scores, targets)
+                loss.backward()
 
-            if i % 100 == 0:
+                #grad clipping
+                nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
+                optimizer.step()
+                temp.set_description("| loss: {:.4f} | failed/skipped: {:3d}".format(loss, failed_or_skipped_batches))
                 plotter.plot('loss', 'train', 'Run: {} Loss'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, loss.item())
+                blocked_enc_f, blocked_enc_g= [], []
 
             if i % 10000 == 0: 
                 checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)
                 qt.eval()
                 acc = test_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
-                plotter.plot('loss', 'train', 'Run: {} Acc'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, acc)
+                plotter.plot('acc', 'test', 'Run: {} Acc'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, acc)
                 qt.train()
 
     checkpoint_training(CONFIG['checkpoint_dir'], -1, qt, optimizer, filename="FINAL_MODEL")
     _LOGGER.info("Finished Training | Total Time: {:.1f}".format(time.time()-start))
-
-

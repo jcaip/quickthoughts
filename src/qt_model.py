@@ -8,7 +8,7 @@ import numpy as np
 
 class GRUEncoder(nn.Module):
     def __init__(self, wv_model, hidden_size, cuda=True):
-        super(UniGRUEncoder, self).__init__()
+        super(GRUEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
         self.hidden_size = hidden_size
         self.embeddings = nn.Embedding(*wv_model.vectors.shape)
@@ -25,10 +25,8 @@ class GRUEncoder(nn.Module):
         packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
         packed_output, hidden = self.gru(packed, hidden)
         unpacked, _ = pad_packed_sequence(packed_output)
-        print("encoded:", unpacked.size())
         idx = (lengths - 1).view(-1, 1).expand(unpacked.size(1),
                                                unpacked.size(2)).unsqueeze(0).to(self.device)
-        print("idx:", idx.size())
         return unpacked.gather(0, idx).squeeze()
 
 class TransformerEncoder(nn.Module):
@@ -68,9 +66,10 @@ class QuickThoughts(nn.Module):
     def __init__(self, wv_model, hidden_size=1000, encoder='uni-gru', cuda=True):
         super(QuickThoughts, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
-        self.enc_f = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
-        self.enc_g = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
-        self.log_softmax = nn.LogSoftmax(dim=1)
+        # self.enc_f = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
+        # self.enc_g = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
+        self.enc_f = GRUEncoder(wv_model, hidden_size, cuda=cuda)
+        self.enc_g = GRUEncoder(wv_model, hidden_size, cuda=cuda)
         log_param_info(self)
 
     # generate targets softmax
@@ -108,11 +107,5 @@ class QuickThoughts(nn.Module):
         if not self.training:
             return torch.cat((encoding_f, encoding_g), dim=catdim)
 
-        #training
-        scores = torch.matmul(encoding_f, encoding_g.t())
-        # zero out when it's the same sentence
-        mask = torch.eye(len(scores), device=self.device).byte()
-        scores.masked_fill_(mask, 0)    
+        return (encoding_f, encoding_g)
 
-        #return log scores and target
-        return self.log_softmax(scores)
