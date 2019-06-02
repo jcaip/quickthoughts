@@ -65,15 +65,14 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=100):
     def make_batch(j):
         """Processes one test batch of the test datset"""
         stop_idx = min(size, j+test_batch_size)
-        _LOGGER.info("Processing data from {:5d} to {:5d}".format(j, stop_idx))
         batch_text, batch_labels  = text[j:stop_idx], labels[j:stop_idx]
         data = list(map(lambda x: torch.LongTensor(prepare_sequence(x, vocab)), batch_text))
         packed = safe_pack_sequence(data).cuda()
         return encoder(packed).cpu().detach().numpy()
-
+    
     feature_list = [make_batch(i) for i in range(0, size, test_batch_size)]
+    _LOGGER.info("Processing {:5d} batches of size {:5d}".format(len(feature_list), test_batch_size))
     features = np.concatenate(feature_list)
-    print(features)
     _LOGGER.info("Test feature matrix of shape: {}".format(features.shape))
 
     return text, labels, features
@@ -121,6 +120,13 @@ def eval_nested_kfold(encoder, vocab, name, loc='../data/rt-polaritydata', k=10,
     scores = pool.map(lambda x: fit_outer_kfold(*x), kf.split(labels))
     return scores
 
+def test_performance(encoder, vocab, name, loc, seed=1234):
+    text, labels, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
+    X_train, X_test, y_train, y_test = train_test_split(features, labels)
+    acc_t = fit_clf(X_train, y_train, X_test, y_test, 1)
+    _LOGGER.info("Trained on {:4d} examples - Test Accuracy: {:.2%}".format(len(X_train), acc_t))
+    return acc_t
+
 def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
     text, labels, features = load_data(encoder, vocab, name, loc=loc, seed=seed)
 
@@ -137,7 +143,7 @@ def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
 
 if __name__ == '__main__':
     start = time.time()
-    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/05-31-15-54-18'
+    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/05-31-21-44-19'
     with open("{}/config.json".format(checkpoint_dir)) as fp:
         CONFIG = json.load(fp)
 
@@ -160,7 +166,7 @@ if __name__ == '__main__':
         # for i in idx[:5]:
             # _LOGGER.info("Score: {:.2f} | Sentence: {}".format(asdf[i], text[i]))
 
-    # scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
-    # _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
+    scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
+    _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
 
-    num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
+    # num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')

@@ -35,7 +35,7 @@ class TransformerEncoder(nn.Module):
     """
     Attention based sentence encoder
     """
-    def __init__(self, wv_model, hidden_size, cuda=True, N=4, d_model=300, d_ff=1000, h=5, dropout=0.1):
+    def __init__(self, wv_model, hidden_size, cuda=True, N=6, d_model=300, d_ff=1000, h=5, dropout=0.1):
         super(TransformerEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
         self.embeddings = nn.Embedding(*wv_model.vectors.shape)

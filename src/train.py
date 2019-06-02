@@ -18,6 +18,7 @@ from tqdm import tqdm
 import gensim.downloader as api
 import os
 import json
+from eval import test_performance
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -70,30 +71,36 @@ if __name__ == '__main__':
     # for i in tqdm(range(0, block_offset, positive_block_size)):
         # data = get_batch(heads, positive_block_size)
 
-    for i, data in enumerate(tqdm(train_iter)):
-        optimizer.zero_grad()
-        data = data.cuda()
+    for j in range(CONFIG['num_epochs']):
+        temp = tqdm(train_iter)
+        for i, data in enumerate(temp):
+            optimizer.zero_grad()
+            data = data.cuda()
 
-        log_scores = qt(data)
-        targets = qt.generate_targets(CONFIG['batch_size'])
-        # targets = qt.generate_block_targets(positive_block_size, num_blocks)
-        # print(torch.sum(targets))
+            log_scores = qt(data)
+            targets = qt.generate_targets(CONFIG['batch_size'])
+            # targets = qt.generate_block_targets(positive_block_size, num_blocks)
+            # print(torch.sum(targets))
 
-        #compute loss
-        loss = kl_loss(log_scores.type(torch.cuda.DoubleTensor), targets.type(torch.cuda.DoubleTensor))
-        loss.backward()
-        #grad clipping
-        nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
-        optimizer.step()
+            #compute loss
+            loss = kl_loss(log_scores.type(torch.cuda.DoubleTensor), targets.type(torch.cuda.DoubleTensor))
+            loss.backward()
+            #grad clipping
+            nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
+            optimizer.step()
 
-        if i % 10 == 0:
-            tqdm.write("batch: {:6d} | loss: {:.4f} | failed/skipped: {:3d}".format(i, loss, failed_or_skipped_batches))
+            if i % 10 == 0:
+                temp.set_description("batch: {:6d} | loss: {:.4f} | failed/skipped: {:3d}".format(i, loss, failed_or_skipped_batches))
 
-        if i % 100 == 0:
-            plotter.plot('loss', 'train', 'Run: {} Loss'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, loss.item())
+            if i % 100 == 0:
+                plotter.plot('loss', 'train', 'Run: {} Loss'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, loss.item())
 
-        if i % 10000 == 0: 
-            checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)
+            if i % 10000 == 0: 
+                checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)
+                qt.eval()
+                acc = test_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
+                plotter.plot('loss', 'train', 'Run: {} Acc'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, acc)
+                qt.train()
 
     checkpoint_training(CONFIG['checkpoint_dir'], -1, qt, optimizer, filename="FINAL_MODEL")
     _LOGGER.info("Finished Training | Total Time: {:.1f}".format(time.time()-start))
