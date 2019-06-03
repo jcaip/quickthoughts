@@ -8,6 +8,7 @@ https://github.com/ryankiros/skip-thoughts/blob/master/eval_classification.py
 import json
 import logging
 import operator
+import sys
 import os
 import time
 import torch
@@ -35,9 +36,9 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=100):
     """load in a binary classification dataste for evaluation"""
 
     if name == 'MR':
-        with open(os.path.join(loc, 'rt-polarity.pos'), 'rb') as f:
+        with open(os.path.join(loc, 'rt10662/rt-polarity.pos'), 'rb') as f:
             pos = [line.decode('latin-1').strip() for line in f]
-        with open(os.path.join(loc, 'rt-polarity.neg'), 'rb') as f:
+        with open(os.path.join(loc, 'rt10662/rt-polarity.neg'), 'rb') as f:
             neg = [line.decode('latin-1').strip() for line in f]
     elif name =='SUBJ':
         with open(os.path.join(loc, 'plot.tok.gt9.5000'), 'rb') as f:
@@ -45,20 +46,18 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=100):
         with open(os.path.join(loc, 'quote.tok.gt9.5000'), 'rb') as f:
             neg = [line.decode('latin-1').strip() for line in f]
     elif name == 'CR':
-        with open(os.path.join(loc, 'custrev.pos'), 'rb') as f:
+        with open(os.path.join(loc, 'customerr/custrev.pos'), 'rb') as f:
             pos = [line.decode('latin-1').strip() for line in f]
-        with open(os.path.join(loc, 'custrev.neg'), 'rb') as f:
+        with open(os.path.join(loc, 'customerr/custrev.neg'), 'rb') as f:
             neg = [line.decode('latin-1').strip() for line in f]
     elif name =='MPQA':
-        with open(os.path.join(loc, 'mpqa.pos'), 'rb') as f:
+        with open(os.path.join(loc, 'mpqa/mpqa.pos'), 'rb') as f:
             pos = [line.decode('latin-1').strip() for line in f]
-        with open(os.path.join(loc, 'mpqa.neg'), 'rb') as f:
+        with open(os.path.join(loc, 'mpqa/mpqa.neg'), 'rb') as f:
             neg = [line.decode('latin-1').strip() for line in f]
 
     labels = np.concatenate((np.ones(len(pos)), np.zeros(len(neg))))
     text, labels = shuffle(pos+neg, labels, random_state=seed)
-
-    #prune for testing 
     size = len(labels)
     _LOGGER.info("Loaded dataset {} with total lines: {}".format(name, size))
 
@@ -66,7 +65,11 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=100):
         """Processes one test batch of the test datset"""
         stop_idx = min(size, j+test_batch_size)
         batch_text, batch_labels  = text[j:stop_idx], labels[j:stop_idx]
-        data = list(map(lambda x: torch.LongTensor(prepare_sequence(x, vocab)), batch_text))
+        data = list(map(lambda x: torch.LongTensor(prepare_sequence(x, vocab, no_zeros=True)), batch_text))
+        for i in data:
+            if len(i) == 0:
+                print(i)
+                input()
         packed = safe_pack_sequence(data).cuda()
         return encoder(packed).cpu().detach().numpy()
     
@@ -92,7 +95,7 @@ def chunk_data(train_idx, test_idx, X, y):
 
     return (X_train, y_train, X_test, y_test)
 
-def eval_nested_kfold(encoder, vocab, name, loc='../data/rt-polaritydata', k=10, seed=1234):
+def eval_nested_kfold(encoder, vocab, name, loc='../data', k=10, seed=1234):
     """Evaluates nested kfold to get accuracy"""
 
     def fit_outer_kfold(train, test):
@@ -140,10 +143,9 @@ def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
     
     return num_examples, acc
     
-
 if __name__ == '__main__':
     start = time.time()
-    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/05-31-21-44-19'
+    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/06-03-08-02-39'
     with open("{}/config.json".format(checkpoint_dir)) as fp:
         CONFIG = json.load(fp)
 
@@ -152,8 +154,14 @@ if __name__ == '__main__':
     trained_params = torch.load("{}/checkpoint_latest.pth".format(checkpoint_dir))
     qt.load_state_dict(trained_params['state_dict'])
     qt.eval()
-
     _LOGGER.info("Restored successfully from {}".format(checkpoint_dir))
+
+    for dataset in ['MR', 'SUBJ', 'CR', 'MPQA']:
+        start = time.time()
+        scores = eval_nested_kfold(qt, WV_MODEL.vocab, dataset)
+        _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format(dataset, np.mean(scores), time.time()-start))
+
+    # num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
 
     # nn search interactive
     # text, labels, features = load_data(qt, WV_MODEL.vocab, 'MR', loc='../data/rt-polaritydata', seed=1234)
@@ -166,7 +174,3 @@ if __name__ == '__main__':
         # for i in idx[:5]:
             # _LOGGER.info("Score: {:.2f} | Sentence: {}".format(asdf[i], text[i]))
 
-    scores = eval_nested_kfold(qt, WV_MODEL.vocab, 'MR')
-    _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format('MR', np.mean(scores), time.time()-start))
-
-    # num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')

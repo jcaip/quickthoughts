@@ -7,13 +7,14 @@ from scipy.linalg import block_diag
 import numpy as np
 
 class GRUEncoder(nn.Module):
-    def __init__(self, wv_model, hidden_size, cuda=True):
+    def __init__(self, wv_model, hidden_size, bidirectional, dropout,  cuda=True):
         super(GRUEncoder, self).__init__()
         self.device = torch.device('cuda' if cuda else 'cpu')
         self.hidden_size = hidden_size
         self.embeddings = nn.Embedding(*wv_model.vectors.shape)
         self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors), requires_grad=False)
-        self.gru = nn.GRU(wv_model.vectors.shape[1], hidden_size)
+        self.bidirectional = bidirectional
+        self.gru = nn.GRU(wv_model.vectors.shape[1], hidden_size, dropout=dropout, bidirectional=bidirectional)
 
     # input should be a packed sequence                                                    
     def forward(self, packed_input):
@@ -21,7 +22,7 @@ class GRUEncoder(nn.Module):
         raw_inputs, lengths = pad_packed_sequence(packed_input)
         max_seq_len = torch.max(lengths)
         embeds = self.embeddings(raw_inputs)
-        hidden = torch.zeros(1, embeds.shape[1], self.hidden_size, device = self.device)
+        hidden = torch.zeros(2 if self.bidirectional else 1, embeds.shape[1], self.hidden_size, device = self.device)
         packed = pack_padded_sequence(embeds, lengths, enforce_sorted=False)
         packed_output, hidden = self.gru(packed, hidden)
         unpacked, _ = pad_packed_sequence(packed_output)
@@ -68,8 +69,8 @@ class QuickThoughts(nn.Module):
         self.device = torch.device('cuda' if cuda else 'cpu')
         # self.enc_f = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
         # self.enc_g = TransformerEncoder(wv_model, hidden_size, cuda=cuda)
-        self.enc_f = GRUEncoder(wv_model, hidden_size, cuda=cuda)
-        self.enc_g = GRUEncoder(wv_model, hidden_size, cuda=cuda)
+        self.enc_f = GRUEncoder(wv_model, hidden_size, False, 0.3,  cuda=cuda)
+        self.enc_g = GRUEncoder(wv_model, hidden_size, False, 0.3, cuda=cuda)
         log_param_info(self)
 
     # generate targets softmax
