@@ -12,7 +12,7 @@ class GRUEncoder(nn.Module):
         self.device = torch.device('cuda' if cuda else 'cpu')
         self.hidden_size = hidden_size
         self.embeddings = nn.Embedding(*wv_model.vectors.shape)
-        self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors), requires_grad=False)
+        self.embeddings.weight = nn.Parameter(torch.from_numpy(wv_model.vectors))
         self.bidirectional = bidirectional
         self.gru = nn.GRU(wv_model.vectors.shape[1], hidden_size, dropout=dropout, bidirectional=bidirectional)
 
@@ -29,6 +29,7 @@ class GRUEncoder(nn.Module):
         idx = (lengths - 1).view(-1, 1).expand(unpacked.size(1),
                                                unpacked.size(2)).unsqueeze(0).to(self.device)
         return unpacked.gather(0, idx).squeeze()
+
 
 class TransformerEncoder(nn.Module):
     """
@@ -74,9 +75,9 @@ class QuickThoughts(nn.Module):
         log_param_info(self)
 
     # generate targets softmax
-    def generate_targets(self, num_samples):
+    def generate_targets(self, num_samples, offsetlist=[1]):
         targets = torch.zeros(num_samples, num_samples, device=self.device)
-        for offset in [-1, 1]:
+        for offset in offsetlist:
             targets += torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
         targets /= targets.sum(1, keepdim=True)
         return targets
@@ -85,11 +86,9 @@ class QuickThoughts(nn.Module):
     # generate batched targets
     def generate_block_targets(self, positive_block_size, num_blocks):
         # positive_labels = np.ones((positive_block_size, positive_block_size)) - np.eye(positive_block_size)
-        positive_labels = np.zeros((positive_block_size, positive_block_size))
-        for offset in [-1, 1]:
-            positive_labels += np.diag(np.ones(positive_block_size-abs(offset)), k=offset)
+        positive_labels = np.ones((positive_block_size, positive_block_size)) - np.eye(positive_block_size)
         np_targets = block_diag(*([positive_labels] * num_blocks))
-        targets = torch.from_numpy(np_targets).type(torch.DoubleTensor)
+        targets = torch.from_numpy(np_targets).to(self.device)
         return targets
 
     def generate_smooth_targets(self, num_samples):

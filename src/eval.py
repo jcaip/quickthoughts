@@ -145,7 +145,7 @@ def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
     
 if __name__ == '__main__':
     start = time.time()
-    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/06-03-08-02-39'
+    checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/fluid_embeddings'
     with open("{}/config.json".format(checkpoint_dir)) as fp:
         CONFIG = json.load(fp)
 

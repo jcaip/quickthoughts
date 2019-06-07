@@ -52,22 +52,16 @@ if __name__ == '__main__':
     optimizer = optim.Adam(filter(lambda p: p.requires_grad, qt.parameters()), lr=CONFIG['lr'])
     kl_loss = nn.KLDivLoss(reduction='batchmean')
 
-    #xavier initialize weights
-    for p in filter(lambda p: p.required_grad, qt.parameters()):
-        nn.init.xavier_uniform(p)
-
     #start training
     qt = qt.train()
     failed_or_skipped_batches = 0
     last_train_idx = restore_training(CONFIG['checkpoint_dir'], qt, optimizer) if CONFIG['resume'] else -1
     start = time.time()
-    block_size=1
+    block_size=5
 
     #training loop
     for j in range(CONFIG['num_epochs']):
         temp = tqdm(train_iter)
-
-        blocked_enc_f, blocked_enc_g= [], []
 
         for i, data in enumerate(temp):
             #deal with bad sequences
@@ -76,49 +70,54 @@ if __name__ == '__main__':
                 continue
 
             #zero out
-            torch.cuda.empty_cache()
-            optimizer.zero_grad()
-            data = data.cuda()
+            try:
+                torch.cuda.empty_cache()
+                optimizer.zero_grad()
+                data = data.cuda()
 
-            #forward pass
-            enc_f, enc_g = qt(data)
-            blocked_enc_f.append(enc_f)
-            blocked_enc_g.append(enc_g)
+                #forward pass
+                enc_f, enc_g = qt(data)
 
-            # enough for a block -> average and take grad step
-            if len(blocked_enc_f) % block_size == 0 :
-                # compute the mean block
-                mean_enc_f = torch.stack(blocked_enc_f).mean(dim=0)
-                mean_enc_g = torch.stack(blocked_enc_g).mean(dim=0)
+
+                # for k in range(0, CONFIG['batch_size'], block_size):
+                    # avg = enc_g[k:k+block_size].mean(dim=0)
+                    # for l in range(block_size):
+                        # enc_g[k+l, :] = avg - enc_g[k+l, :] 
 
                 # calculate scores
-                scores = torch.matmul(mean_enc_f, mean_enc_g.t())
+                scores = torch.matmul(enc_f, enc_g.t())
                 # zero out when it's the same sentence
                 mask = torch.eye(len(scores)).cuda().byte()
                 scores.masked_fill_(mask, 0)    
 
                 #return log scores and target
                 block_log_scores = F.log_softmax(scores, dim=1)
-                targets = qt.generate_targets(CONFIG['batch_size'])
+                # targets also topelitz matrix
+                targets = qt.generate_targets(CONFIG['batch_size'], offsetlist=[1])
                 loss = kl_loss(block_log_scores, targets)
                 loss.backward()
         
                 #grad clipping
                 nn.utils.clip_grad_norm_(filter(lambda p: p.requires_grad, qt.parameters()), CONFIG['norm_threshold'])
                 optimizer.step()
-                blocked_enc_f, blocked_enc_g= [], []
 
                 temp.set_description("loss {:.4f} | failed/skipped {:3d}".format(loss, failed_or_skipped_batches))
 
-            if i and i % 100 == 0:
-                plotter.plot('loss', 'train', 'Run: {} Loss'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, loss.item())
+                if i % 100 == 0:
+                    plotter.plot('loss', 'train', 'Run: {} Loss'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, loss.item())
 
-            if i and i % 10000 == 0: 
-                checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)
-                qt.eval()
-                acc = test_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
-                plotter.plot('acc', 'test', 'Run: {} MR Acc'.format(CONFIG['checkpoint_dir'].split('/')[-1]), time.time()-start, acc)
-                qt.train()
+                if i % 5000 == 0: 
+                    checkpoint_training(CONFIG['checkpoint_dir'], i, qt, optimizer)
+                    qt.eval()
+                    for dataset in ['MR', 'CR', 'MPQA', 'SUBJ']:
+                        acc = test_performance(qt, WV_MODEL.vocab, dataset, '../data', seed=int(time.time()))
+                        plotter.plot('acc', dataset, 'Downstream Accuracy', i, acc, xlabel='seconds')
+                    qt.train()
+
+            except Exception as e:
+                _LOGGER.exception(e)
+                failed_or_skipped_batches+=1
+                torch.cuda.empty_cache()
 
     checkpoint_training(CONFIG['checkpoint_dir'], -1, qt, optimizer, filename="FINAL_MODEL")
     _LOGGER.info("Finished Training | Total Time: {:.1f}".format(time.time()-start))
