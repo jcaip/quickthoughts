@@ -14,6 +14,7 @@ import time
 import torch
 import numpy as np
 import gensim.downloader as api
+from sklearn.datasets import fetch_20newsgroups
 from gensim.models import KeyedVectors
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import KFold, train_test_split
@@ -60,6 +61,7 @@ def load_data(encoder, vocab, name, loc, seed=1234, test_batch_size=100):
     text, labels = shuffle(pos+neg, labels, random_state=seed)
     size = len(labels)
     _LOGGER.info("Loaded dataset {} with total lines: {}".format(name, size))
+    test_batch_size = 2000
 
     def make_batch(j):
         """Processes one test batch of the test datset"""
@@ -144,6 +146,7 @@ def test_limited_data_performance(encoder, vocab, name, loc, seed=1234):
     return num_examples, acc
     
 if __name__ == '__main__':
+    newsgroups = fetch_20newsgroups(subset='all')
     start = time.time()
     checkpoint_dir = '/home/jcaip/workspace/quickthoughts/checkpoints/fluid_embeddings'
     with open("{}/config.json".format(checkpoint_dir)) as fp:
@@ -156,15 +159,39 @@ if __name__ == '__main__':
     qt.eval()
     _LOGGER.info("Restored successfully from {}".format(checkpoint_dir))
 
-    for dataset in ['MR', 'SUBJ', 'CR', 'MPQA']:
-        start = time.time()
-        scores = eval_nested_kfold(qt, WV_MODEL.vocab, dataset)
-        _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format(dataset, np.mean(scores), time.time()-start))
+    text, labels = newsgroups.data, newsgroups.target
+    size = len(labels)
+    _LOGGER.info("Loaded dataset {} with total lines: {}".format("20 NEWS", size))
+
+    def make_batch(j):
+        """Processes one test batch of the test datset"""
+        stop_idx = min(size, j+test_batch_size)
+        batch_text, batch_labels  = text[j:stop_idx], labels[j:stop_idx]
+        data = list(map(lambda x: torch.LongTensor(prepare_sequence(x, vocab, no_zeros=True)), batch_text))
+        for i in data:
+            if len(i) == 0:
+                print(i)
+                input()
+        packed = safe_pack_sequence(data).cuda()
+        return qt(packed).cpu().detach().numpy()
+    
+    feature_list = [make_batch(i) for i in range(0, size, test_batch_size)]
+    _LOGGER.info("Processing {:5d} batches of size {:5d}".format(len(feature_list), test_batch_size))
+    features = np.concatenate(feature_list)
+    _LOGGER.info("Test feature matrix of shape: {}".format(features.shape))
+    X_train, X_test, y_train, y_test = train_test_split(features, labels)
+    acc_t = fit_clf(X_train, y_train, X_test, y_test, 1)
+    _LOGGER.info("Trained on {:4d} examples - Test Accuracy: {:.2%}".format(len(X_train), acc_t))
+
+    # for dataset in ['MR', 'SUBJ', 'CR', 'MPQA']:
+        # start = time.time()
+        # scores = eval_nested_kfold(qt, WV_MODEL.vocab, dataset)
+        # _LOGGER.info("Finished Evaluation of {} | Accuracy: {:.2%} | Total Time: {:.1f}s".format(dataset, np.mean(scores), time.time()-start))
 
     # num_examples, acc = test_limited_data_performance(qt, WV_MODEL.vocab, 'MR', '../data/rt-polaritydata')
 
     # nn search interactive
-    # text, labels, features = load_data(qt, WV_MODEL.vocab, 'MR', loc='../data/rt-polaritydata', seed=1234)
+    # text, labels, features = load_data(qt, WV_MODEL.vocab, 'SUBJ', loc='../data', seed=1234)
     # while True:
         # query = prepare_sequence(input("Query sentence: "), WV_MODEL.vocab)
         # packed= safe_pack_sequence([ torch.LongTensor(query) ]).cuda()

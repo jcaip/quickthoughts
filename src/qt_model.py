@@ -75,8 +75,8 @@ class QuickThoughts(nn.Module):
         log_param_info(self)
 
     # generate targets softmax
-    def generate_targets(self, num_samples, offsetlist=[1], label_smoothing=0.1):
-        targets = torch.zeros(num_samples, num_samples, device=self.device).fill_(label_smoothing)
+    def generate_targets(self, num_samples, offsetlist=[1]):
+        targets = torch.zeros(num_samples, num_samples, device=self.device)
         for offset in offsetlist:
             targets += torch.diag(torch.ones(num_samples-abs(offset), device=self.device), diagonal=offset)
         targets /= targets.sum(1, keepdim=True)

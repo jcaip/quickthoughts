@@ -78,11 +78,10 @@ if __name__ == '__main__':
                 #forward pass
                 enc_f, enc_g = qt(data)
 
+                # calculate block points, targets also topelitz matrix
+                mean_positive_conv = qt.generate_targets(CONFIG['batch_size'], offsetlist=[-1, 1])
+                mean_positive_block = torch.matmul(mean_positive_conv, enc_g)
 
-                # for k in range(0, CONFIG['batch_size'], block_size):
-                    # avg = enc_g[k:k+block_size].mean(dim=0)
-                    # for l in range(block_size):
-                        # enc_g[k+l, :] = avg - enc_g[k+l, :] 
 
                 # calculate scores
                 scores = torch.matmul(enc_f, enc_g.t())
@@ -92,8 +91,6 @@ if __name__ == '__main__':
 
                 #return log scores and target
                 block_log_scores = F.log_softmax(scores, dim=1)
-                # targets also topelitz matrix
-                targets = qt.generate_targets(CONFIG['batch_size'], offsetlist=[1])
                 loss = kl_loss(block_log_scores, targets)
                 loss.backward()
         
@@ -111,7 +108,7 @@ if __name__ == '__main__':
                     qt.eval()
                     for dataset in ['MR', 'CR', 'MPQA', 'SUBJ']:
                         acc = test_performance(qt, WV_MODEL.vocab, dataset, '../data', seed=int(time.time()))
-                        plotter.plot('acc', dataset, 'Downstream Accuracy', i, acc, xlabel='seconds')
+                        plotter.plot('acc', dataset, 'Run: {} Downstream Accuracy'.format(CONFIG['checkpoint_dir'].split('/')[-1]), i, acc, xlabel='batch')
                     qt.train()
 
             except Exception as e:
