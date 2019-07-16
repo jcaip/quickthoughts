@@ -105,7 +105,7 @@ class QuickThoughts(nn.Module):
         
         #testing
         if not self.training:
-            return torch.cat((encoding_f, encoding_g), dim=catdim)
+            return (encoding_f + encoding_g )
 
         return (encoding_f, encoding_g)
 
