@@ -145,7 +145,7 @@ murmurhash==1.0.2
 nb-conda==2.2.1
 nb-conda-kernels==2.2.1
 nbconvert==5.4.1
-nbdime==1.0.5
+nbdime==1.1.1
 nbformat==4.4.0
 nbpresent==3.0.2
 networkx==2.2
