@@ -191,7 +191,7 @@ protobuf==3.7.1
 psutil==5.6.1
 ptyprocess==0.6.0
 py==1.8.0
-pyarrow==0.13.0
+pyarrow==0.15.1
 pyasn1==0.4.5
 pyasn1-modules==0.2.5
 pycodestyle==2.5.0
